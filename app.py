@@ -1,122 +1,146 @@
 import time
-import numpy as np
 import streamlit as st
 import torch
+import torch.nn.functional as F
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-# Kendi modüllerimizi import ediyoruz
-from src.calibration import TemperatureScaler
-from src.metrics import compute_ece, compute_semantic_entropy
-from src.uncertainty import cluster_responses_by_meaning
+# PROJENİN KENDİ 'SRC' MODÜLLERİ
+try:
+    from src.calibration import TemperatureScaler
+    from src.metrics import compute_ece, compute_semantic_entropy
+    from src.uncertainty import cluster_responses_by_meaning
+except ImportError as e:
+    st.error(f"❌ 'src' modülleri yüklenemedi: {e}")
 
-# Sayfa Konfigürasyonu
 st.set_page_config(
-    page_title="TrustLLM Analysis Portal", page_icon="🛡️", layout="wide"
+    page_title="TrustLLM - Overconfidence Correction",
+    page_icon="🛡️",
+    layout="wide",
 )
 
-st.title("🛡️ TrustLLM: Uncertainty & Calibration Analyzer")
-st.caption(
-    "Derin Öğrenme ve LLM Modelleri İçin Güvenilirlik ve Belirsizlik Analiz Paneli"
-)
+st.title("🛡️ TrustLLM: Yüksek Özgüvenli Yanlış Cevap (Overconfidence) Tespiti")
+st.caption("Çoklu Örnekleme (Sampling) + Temperature Scaling + Semantic Entropy Çapraz Kontrolü")
 
 st.divider()
 
-# Yan Menü: Analiz Türü Seçimi
-analysis_type = st.sidebar.radio(
-    "📌 Analiz Türünü Seçin",
-    ["LLM Metin Yanıtı (Anlamsal Entropi)", "Model Logit / Kalibrasyon (ECE)"],
+@st.cache_resource
+def load_llm():
+    model_name = "gpt2"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(model_name)
+    model.eval()
+    return tokenizer, model
+
+tokenizer, model = load_llm()
+
+user_prompt = st.text_input(
+    "❓ Model Girdisi (Prompt / Input):",
+    value="At what temperature in Celsius does water freeze?",
+    placeholder="Sorunuzu yazın...",
 )
 
-# ---------------------------------------------------------
-# SEÇENEK 1: LLM Metin Yanıtı Analizi
-# ---------------------------------------------------------
-if analysis_type == "LLM Metin Yanıtı (Anlamsal Entropi)":
-    st.subheader("🤖 LLM Halüsinasyon ve Belirsizlik Analizi")
+# Yüksek Özgüven Düzeltme Parametresi (Temperature Scaling)
+temperature_val = st.sidebar.slider("🔥 Temperature (Sıcaklık Ölçekleme):", min_value=0.1, max_value=2.0, value=1.2, step=0.1)
 
-    user_prompt = st.text_input(
-        "Model Prompt'u (Soru):", "Türkiye'nin başkenti neresidir?"
-    )
+if st.button("🚀 Düzeltilmiş Analizi Başlat", type="primary"):
+    if not user_prompt.strip():
+        st.warning("Lütfen bir girdi yazın.")
+    else:
+        with st.status("⚙️ Yüksek Özgüven Riski Analiz Ediliyor...", expanded=True) as status:
 
-    st.write("Modelden Üretilen Örnek Yanıtlar (Çoklu Örnekleme):")
-    resp1 = st.text_input("Yanıt 1:", "Ankara, Türkiye'nin başkentidir.")
-    resp2 = st.text_input("Yanıt 2:", "Türkiye Cumhuriyeti'nin başşehri Ankara'dır.")
-    resp3 = st.text_input("Yanıt 3:", "Türkiye'nin başkenti İstanbul'dur.")
-
-    if st.button("🚀 Analizi Başlat", type="primary"):
-        st.write("### 🔍 İşlem Adımları")
-
-        # 1. Adım: Kümeleme
-        with st.status("Adım 1: Yanıtlar anlamsal olarak kümeleniyor...", expanded=True) as status:
-            time.sleep(1)
-            responses = [resp1, resp2, resp3]
-            cluster_labels = cluster_responses_by_meaning(responses)
-            st.write(f"✅ **Kümeleme Tamamlandı:** Atanan Kümeler = `{cluster_labels}`")
-
-            # 2. Adım: Entropi Hesaplama
-            st.write("Adım 2: Anlamsal Entropi hesaplanıyor...")
-            time.sleep(1)
-            entropy = compute_semantic_entropy(cluster_labels)
-            status.update(
-                label="Analiz Başarıyla Tamamlandı!",
-                state="complete",
-                expanded=False,
-            )
-
-        # Sonuç Kartları
-        st.divider()
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric(
-                label="Anlamsal Entropi (Semantic Entropy)",
-                value=f"{entropy:.4f}",
-            )
-
-        with col2:
-            if entropy < 0.2:
-                st.success("✅ **Düşük Risk:** Model cevabından emin (Tutarlı).")
-            else:
-                st.error(
-                    "⚠️ **Yüksek Halüsinasyon Riski:** Model kararsız/çelişkili yanıtlar verdi."
+            # 1. ÇOKLU ÖRNEKLEME (SAMPLING) İLE FARKLI HİPOTEZLER ÜRETME
+            inputs = tokenizer(user_prompt, return_tensors="pt")
+            
+            with torch.no_grad():
+                # Modelden Temperature ile 5 farklı örnek dizilim çekiyoruz
+                output_sequences = model.generate(
+                    **inputs,
+                    max_new_tokens=5,
+                    num_return_sequences=5,
+                    do_sample=True,
+                    temperature=temperature_val,
+                    return_dict_in_generate=True,
+                    output_scores=True
                 )
 
-# ---------------------------------------------------------
-# SEÇENEK 2: Model Logit / Kalibrasyon (ECE)
-# ---------------------------------------------------------
-else:
-    st.subheader("📊 Sınıflandırma Modeli Kalibrasyonu (ECE)")
+            generated_responses = []
+            raw_logits_list = []
 
-    st.info(
-        "Bu modül modelin özgüven skorları ile gerçek doğruluğu arasındaki farkı hesaplar."
-    )
+            # İlk adımın logit matrisi
+            first_step_logits = output_sequences.scores[0] # [5, Vocab_Size]
 
-    if st.button("🧪 Örnek Logit Analizini Çalıştır", type="primary"):
-        with st.status("Adım 1: Logitler ve Kalibrasyon İşleniyor...", expanded=True) as status:
-            # Örnek Sentetik Veri
-            logits = torch.tensor([[2.5, 0.1], [0.8, 2.2], [0.5, 2.8]])
-            labels = torch.tensor([0, 1, 0])
+            for i, seq in enumerate(output_sequences.sequences):
+                new_tokens = seq[inputs["input_ids"].shape[1]:]
+                decoded_word = tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+                if not decoded_word:
+                    decoded_word = "Unknown"
+                
+                generated_responses.append(decoded_word)
+                
+                # Temperature Scaled Logit Hesaplama
+                max_logit = first_step_logits[i].max().item()
+                raw_logits_list.append(max_logit)
 
-            time.sleep(1)
-            raw_ece = compute_ece(logits, labels)
-            st.write(f"🔹 **Ham ECE (Kalibrasyon Öncesi):** `{raw_ece:.4f}`")
+            # Ham vs Kalibre Edilmiş Olasılıklar
+            raw_logits_tensor = torch.tensor([raw_logits_list])
+            scaled_logits_tensor = raw_logits_tensor / temperature_val
+            
+            raw_probs = F.softmax(raw_logits_tensor, dim=-1)[0].tolist()
+            calibrated_probs = F.softmax(scaled_logits_tensor, dim=-1)[0].tolist()
 
-            # Temperature Scaling
-            st.write("Adım 2: Temperature Scaling uygulanıyor...")
-            scaler = TemperatureScaler()
-            scaler.fit(logits, labels)
-            calibrated_logits = scaler(logits)
-            calibrated_ece = compute_ece(calibrated_logits, labels)
-            time.sleep(1)
+            # 2. ANLAMSAL KÜMELEME VE ENTROPİ (SRC.UNCERTAINTY & SRC.METRICS)
+            full_candidate_responses = [f"{user_prompt} {w}" for w in generated_responses]
+            cluster_labels = cluster_responses_by_meaning(full_candidate_responses)
+            semantic_entropy = abs(compute_semantic_entropy(cluster_labels))
 
-            status.update(
-                label="Kalibrasyon Süreci Tamamlandı!",
-                state="complete",
-                expanded=False,
+            # 3. KALİBRASYON (ECE HESABI)
+            dummy_labels = torch.tensor([0])
+            raw_ece = compute_ece(raw_logits_tensor, dummy_labels)
+            calibrated_ece = compute_ece(scaled_logits_tensor, dummy_labels)
+
+            status.update(label="Analiz Tamamlandı!", state="complete", expanded=False)
+
+        st.divider()
+
+        # METRİKLER
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Anlamsal Entropi (Semantic Entropy)", f"{semantic_entropy:.4f}")
+            st.caption("Farklı Anlamsal Kümelerin Yayılımı")
+        
+        with col2:
+            st.metric("Ham ECE (Aşırı Özgüven Riski)", f"{raw_ece:.4f}")
+            st.caption("Kalibrasyon Öncesi Hata")
+
+        with col3:
+            st.metric("Kalibre Edilmiş ECE", f"{calibrated_ece:.4f}", delta=f"-{(raw_ece - calibrated_ece):.4f}")
+            st.caption(f"Sıcaklık ($T={temperature_val}$) Sonrası Hata")
+
+        st.markdown("---")
+        st.subheader("⚠️ Yüksek Özgüven / Halüsinasyon Kontrol Tespiti:")
+
+        # KARAR MANTIĞI: Ham Olasılık Yüksek Ama Entropi De Yüksekse = OVERCONFIDENCE WRONG ANSWER
+        max_raw_prob = max(raw_probs)
+        
+        if max_raw_prob > 0.60 and semantic_entropy > 0.30:
+            st.error(
+                f"🚨 **YÜKSEK ÖZGÜVENLİ YANLIŞ CEVAP / HALÜSİNASYON RİSKİ DETECTED!**\n\n"
+                f"Model ilk yanıtına yüksek olasılık (%{max_raw_prob*100:.1f}) atamasına rağmen, "
+                f"örnekleme yapıldığında Anlamsal Entropi (`{semantic_entropy:.4f}`) yüksek çıkmıştır. "
+                f"Bu durum modelin EZBERE / YANLIŞ cevap verdiğini gösterir."
             )
+        elif semantic_entropy <= 0.30 and max_raw_prob > 0.60:
+            st.success("✅ **GÜVENİLİR VE TUTARLI YANIT:** Model hem yüksek özgüvene sahip hem de anlamsal olarak yanıtlar birbiriyle tam örtüşüyor.")
+        else:
+            st.warning("⚠️ **DÜŞÜK ÖZGÜVEN / BELİRSİZ YANIT:** Model cevabından emin değil.")
 
-        # Sonuç Karşılaştırma
-        col1, col2 = st.columns(2)
-        col1.metric("Önceki ECE Skoru", f"{raw_ece:.4f}")
-        col2.metric(
-            "Kalibre Edilmiş ECE Skoru",
-            f"{calibrated_ece:.4f}",
-            delta=f"-{(raw_ece - calibrated_ece):.4f}",
-        )
+        st.markdown("---")
+        st.subheader("🎯 Üretilen Yanıt Adayları ve Kalibrasyon Etkisi:")
+
+        t_cols = st.columns(5)
+        for i, (word_ans, raw_p, cal_p) in enumerate(zip(generated_responses, raw_probs, calibrated_probs)):
+            with t_cols[i]:
+                st.metric(f"Aday #{i+1}", f"'{word_ans}'")
+                st.write(f"**Ham Olasılık:** `%{raw_p*100:.1f}`")
+                st.write(f"**Kalibre Olasılık:** `%{cal_p*100:.1f}`")
+                st.write(f"**Küme ID:** `{cluster_labels[i]}`")
