@@ -1,60 +1,55 @@
-from sentence_transformers import SentenceTransformer
-from sklearn.cluster import AgglomerativeClustering
+"""
+TrustLLM - Uncertainty & Semantic Clustering Module
+"""
+
+import numpy as np
 import torch
-import torch.nn.functional as F
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
 
-# Pre-load embedding model for semantic clustering
-# Anlamsal kümeleme için embedding modelini yüklüyoruz
-_embedder = SentenceTransformer("all-MiniLM-L6-v2")
-
-
-def enable_dropout(model):
-    """Forces all Dropout layers in the model to remain active during
-    evaluation."""
-    for m in model.modules():
-        if m.__class__.__name__.startswith("Dropout"):
-            m.train()
+# Anlamsal Vektörleştirme Modeli (Embedding Model)
+_model = None
 
 
-def estimate_mc_uncertainty(model, x_input, num_samples=20):
-    """Computes mean probability and epistemic uncertainty (variance) using Monte
-    Carlo Dropout.
+def get_embedding_model():
+    global _model
+    if _model is None:
+        _model = SentenceTransformer("all-MiniLM-L6-v2")
+    return _model
 
-    TR: MC Dropout kullanarak ortalama olasılık ve Epistemic belirsizlik
-    (varyans) hesaplar.
+
+def cluster_responses_by_meaning(candidate_responses, threshold=0.75):
     """
-    model.eval()
-    enable_dropout(model)
-
-    mc_predictions = []
-
-    with torch.no_grad():
-        for _ in range(num_samples):
-            logits = model(x_input)
-            probs = F.softmax(logits, dim=-1)
-            mc_predictions.append(probs)
-
-    mc_predictions = torch.stack(mc_predictions)
-    mean_probs = torch.mean(mc_predictions, dim=0)
-    epistemic_uncertainty = torch.var(mc_predictions, dim=0)
-
-    return mean_probs, epistemic_uncertainty
-
-
-def cluster_responses_by_meaning(responses, distance_threshold=0.3):
-    """Clusters generated responses based on semantic similarity using
-    hierarchical clustering.
-
-    TR: Üretilen metin yanıtlarını anlamsal benzerliklerine göre gruplar.
+    Aday yanıtları anlamsal kosinüs benzerliğine göre kümeleyen fonksiyon.
+    Eğer yanıtlar benzerse aynı Küme ID'sini alır.
     """
-    embeddings = _embedder.encode(responses)
+    if not candidate_responses:
+        return []
 
-    clustering = AgglomerativeClustering(
-        n_clusters=None,
-        metric="cosine",
-        linkage="average",
-        distance_threshold=distance_threshold,
-    )
+    model = get_embedding_model()
+    embeddings = model.encode(candidate_responses)
 
-    cluster_labels = clustering.fit_predict(embeddings)
-    return cluster_labels
+    clusters = []
+    cluster_mapping = {}
+    current_cluster_id = 0
+
+    for i, emb_i in enumerate(embeddings):
+        if i in cluster_mapping:
+            continue
+
+        cluster_mapping[i] = current_cluster_id
+
+        for j in range(i + 1, len(embeddings)):
+            if j in cluster_mapping:
+                continue
+
+            emb_j = embeddings[j]
+            similarity = cosine_similarity([emb_i], [emb_j])[0][0]
+
+            if similarity >= threshold:
+                cluster_mapping[j] = current_cluster_id
+
+        current_cluster_id += 1
+
+    labels = [cluster_mapping[idx] for idx in range(len(candidate_responses))]
+    return labels
