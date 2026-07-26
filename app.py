@@ -256,7 +256,8 @@ if st.button(
         for log in history_logs:
             st.write(
                 f"🔹 **Adım {log['step']}:** Temp: `{log['temp']:.2f}` | Entropi: `{log['entropy']:.4f}` | Max Prob: `%{log['max_prob']*100:.1f}`"
-            )import random
+            )
+            import random
 import string
 import time
 import streamlit as st
