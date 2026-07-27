@@ -4,6 +4,7 @@ import string
 import sys
 import time
 
+# Bulunduğumuz ana dizini Python yoluna ekliyoruz
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 import numpy as np
@@ -12,6 +13,7 @@ import torch
 import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+# PROJENİN KENDİ 'SRC' MODÜLLERİ
 try:
     from src.calibration import TemperatureScaler
     from src.metrics import compute_ece, compute_semantic_entropy
@@ -21,25 +23,27 @@ except ModuleNotFoundError as e:
     st.stop()
 
 st.set_page_config(
-    page_title="TrustLLM - Optimized Pipeline",
+    page_title="TrustLLM - Complete Pipeline & Final Answer",
     page_icon="🛡️",
     layout="wide",
 )
 
-st.title("🛡️ TrustLLM: 1 - 7. Hafta İyileştirilmiş Logit & Cevap Analizi")
-st.caption("Prompt Kalıbı ve Anahtar Kelime Filtresi İyileştirilmiş Akademik İnceleme")
+st.title("🛡️ TrustLLM: 1 - 7. Hafta Pipeline + Nihai Kalibre Cevap Paneli")
+st.caption(
+    "Analiz Süreçleri Sonrasında Modelin Belirsizlikten Arındırılmış Nihai Cevabı"
+)
 
 st.divider()
 
+# DİL SEÇİMİ
 st.sidebar.subheader("🌐 Analiz Dili Seçimi")
 selected_language = st.sidebar.selectbox(
     "Analiz Yapılacak Dili Seçin:",
     options=["English", "Türkçe", "Deutsch"],
     index=0,
-    key="lang_select_opt",
+    key="lang_select_final",
 )
 
-# GELİŞMİŞ STOPWORDS VE DOLGU KELİMELERİ FİLTRESİ
 STOP_WORDS = {
     "English": {
         "a", "an", "the", "and", "or", "but", "if", "because", "as", "until",
@@ -65,7 +69,6 @@ STOP_WORDS = {
     },
 }
 
-# DOĞRUDAN CEVABA ZORLAYAN KISA ŞABLONLAR
 PROMPT_TEMPLATES = {
     "English": "Q: What is the {prompt}?\nA:",
     "Türkçe": "Soru: {prompt} nedir?\nCevap:",
@@ -92,7 +95,7 @@ user_prompt = st.text_input(
     f"❓ Model Girdisi ({selected_language}):",
     value=DEFAULT_PROMPTS[selected_language],
     placeholder="Sorunuzu yazın...",
-    key="prompt_input_opt",
+    key="prompt_input_final",
 )
 
 def extract_key_information_token(sequence_tokens, scores_list, lang):
@@ -123,7 +126,7 @@ def extract_key_information_token(sequence_tokens, scores_list, lang):
     return best_token, best_logit, best_prob
 
 
-if st.button("🚀 Analizi Çalıştır (İyileştirilmiş Pipeline)", type="primary", key="btn_run_opt"):
+if st.button("🚀 Analiz Et ve Cevap Üret", type="primary", key="btn_run_final"):
     if not user_prompt.strip():
         st.warning("Lütfen bir girdi yazın.")
     else:
@@ -266,3 +269,40 @@ if st.button("🚀 Analizi Çalıştır (İyileştirilmiş Pipeline)", type="pri
             st.metric("Kalibre Edilmiş ECE", f"{calibrated_ece:.4f}")
         with cal_c3:
             st.metric("ECE Değişimi", f"-{(raw_ece - calibrated_ece):.4f}", delta=f"-{(raw_ece - calibrated_ece):.4f}")
+
+        st.divider()
+
+        # =========================================================
+        # 🎯 8. ADIM: NİHAİ MODEL CEVABI (FINAL CALIBRATED OUTPUT)
+        # =========================================================
+        st.subheader("🎯 NİHAİ MODEL CEVABI (TrustLLM Output)")
+        
+        # En yüksek logit skoru ve kalibre olasılığa sahip kelimeyi seçiyoruz
+        best_idx = int(np.argmax(extracted_logits))
+        final_answer_word = extracted_words[best_idx]
+        final_full_sentence = full_texts[best_idx]
+        final_confidence = calibrated_ece
+
+        st.success(f"### 💡 Soru: **{user_prompt}**")
+        
+        res_col1, res_col2 = st.columns(2)
+        with res_col1:
+            st.markdown(
+                f"""
+                <div style="background-color:#1e293b; padding:20px; border-radius:10px; border-left: 6px solid #10b981;">
+                    <h4 style="margin:0; color:#cbd5e1;">🎯 Kalibre Edilmiş Nihai Cevap (Anahtar Kelime):</h4>
+                    <h1 style="margin:10px 0 0 0; color:#10b981; font-size:42px;">"{final_answer_word}"</h1>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with res_col2:
+            st.markdown(
+                f"""
+                <div style="background-color:#1e293b; padding:20px; border-radius:10px; border-left: 6px solid #3b82f6;">
+                    <h4 style="margin:0; color:#cbd5e1;">📝 Modelin Ürettiği Tam Cümle:</h4>
+                    <p style="margin:10px 0 0 0; color:#f8fafc; font-size:18px;"><em>"{final_full_sentence}"</em></p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
