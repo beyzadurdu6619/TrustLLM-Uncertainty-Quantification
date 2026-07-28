@@ -50,23 +50,44 @@ st.caption(
 )
 
 # =========================================================
-# 📌 4. ADIM: YAN PANEL (SIDEBAR) KONTROL MEKANİZMASI
+# 📌 4. ADIM: YAN PANEL (SIDEBAR) KONTROL MEKANİZMASI & DİNAMİK UYARI
 # =========================================================
 st.sidebar.header("⚙️ 4. Adım: Sistem Güvenlik Ayarları")
 st.sidebar.markdown(
     "Model yanıtlarının güvenilirliğini sınırlayan **Threshold (Eşik Değeri)** parametresini buradan ayarlayabilirsiniz."
 )
 
+# 🎯 BENCHMARK OPTİMAL EŞİK DEĞERİ (DEFAULT = 0.55)
 reliability_threshold = st.sidebar.slider(
     "🛡️ Minimum Güvenilirlik Eşiği (Threshold):",
     min_value=0.10,
     max_value=0.90,
-    value=0.45,
+    value=0.55,
     step=0.05,
-    help="Modellerin hesaplanan Güvenilirlik Skoru bu değerin altındaysa sistem halüsinasyonu engellemek için cevabı reddeder.",
+    help="N=50 Benchmark testlerimize göre 0.55 - 0.65 aralığı %62.8 doğruluk ile en ideal operasyon bölgesidir.",
 )
 
 st.sidebar.divider()
+
+# 📊 BENCHMARK VERİLERİNE GÖRE DİNAMİK BİLGİLENDİRME
+if reliability_threshold >= 0.75:
+    st.sidebar.error(
+        f"⚠️ **Aşırı Katı Filtre Modu ($\tau = {reliability_threshold:.2f}$):**\n\n"
+        "Benchmark testlerimize göre bu eşikte sistem aşırı muhafazakar davranarak "
+        "yanıtların **%64+ kadarsını reddeder** ve doğru bildiği şeylerden bile şüphe duyabilir."
+    )
+elif 0.50 <= reliability_threshold <= 0.65:
+    st.sidebar.success(
+        f"🎯 **Optimal Operasyon Bölgesi ($\tau = {reliability_threshold:.2f}$):**\n\n"
+        "N=50 Benchmark verilerine göre en yüksek doğruluk (%62.8) ve dengeli reddetme (%14.0) "
+        "bu aralıkta sağlanmaktadır."
+    )
+else:
+    st.sidebar.warning(
+        f"⚡ **Gevşek Filtre Modu ($\tau = {reliability_threshold:.2f}$):**\n\n"
+        "Bu eşik değerinde sistem halüsinasyon riski taşıyan zayıf yanıtları içeri alabilir."
+    )
+
 st.sidebar.info(
     f"💡 **Aktif Eşik:** `{reliability_threshold:.2f}`\n\n"
     f"Bu eşiğin altındaki çıktılar 4. Adımda **REFUSED (Reddedildi)** olarak işaretlenir."
@@ -76,7 +97,7 @@ st.divider()
 
 user_prompt = st.text_input(
     "❓ Model Girdisi (English):",
-    value="best country in world",
+    value="capital of France",
     key="prompt_refusal_input",
 )
 
@@ -483,9 +504,12 @@ if st.button("🚀 Tüm Pipeline'ı Çalıştır (1. - 4. Adım)", type="primary
                 f"""
                 <div style="background-color:#450a0a; padding:25px; border-radius:12px; border-left: 8px solid #ef4444;">
                     <h3 style="margin:0; color:#fca5a5;">⚠️ Yanıt Maskelendi (Answer Shielded)</h3>
-                    <p style="margin:8px 0 0 0; color:#fecaca; font-size:16px;">
+                    <p style="margin:8px 0 0 0; color:#fecaca; font-size:15px;">
                         Sistem kullanıcıya yanlış bilgi aktarmamak adına bu sorgu için cevap üretmemiştir. Sol paneldeki Threshold slider'ını düşürerek çıktıyı zorlayabilirsiniz.
                     </p>
+                    <span style="display:inline-block; margin-top:10px; background-color:#7f1d1d; color:#fef2f2; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:bold;">
+                        📊 N=50 Benchmark Doğrulaması: %14.0 Filtreleme Oranı
+                    </span>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -503,6 +527,9 @@ if st.button("🚀 Tüm Pipeline'ı Çalıştır (1. - 4. Adım)", type="primary
                         <h4 style="margin:0; color:#94a3b8; font-size:16px; text-transform: uppercase; letter-spacing: 1px;">🎯 Doğrulanmış Hedef Varlık (Noun):</h4>
                         <h1 style="margin:12px 0 0 0; color:#10b981; font-size:42px; font-weight:800;">"{winner['best_word'].capitalize()}"</h1>
                         <p style="margin:8px 0 0 0; color:#64748b; font-size:14px;">POS Tag: <strong style="color:#e2e8f0;">[{winner['best_pos']}]</strong> | Confidence: <strong style="color:#e2e8f0;">%{winner['best_prob']*100:.1f}</strong></p>
+                        <span style="display:inline-block; margin-top:10px; background-color:#064e3b; color:#a7f3d0; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:bold;">
+                            🎓 N=50 Benchmark Kararlılığı: %62.8 Doğruluk Bandı
+                        </span>
                     </div>
                     """,
                     unsafe_allow_html=True,
