@@ -37,10 +37,10 @@ def load_spacy_nlp():
 nlp = load_spacy_nlp()
 
 st.set_page_config(
-    page_title="TrustLLM new - Research Grade Uncertainty & Linguistic Calibration",
+    page_title="TrustLLM ne - Research Grade Uncertainty & Linguistic Calibration",
     page_icon="🛡️",
     layout="wide",
-)
+)  
 
 st.title("🛡️ TrustLLM: Akademik POS Tagging & Belirsizlik Analiz Paneli")
 st.caption("SpaCy Sentaks Ağacı Analizi, Semantic Entropy ve Temperature Scaling Pipeline'ı")
