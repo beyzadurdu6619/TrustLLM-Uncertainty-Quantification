@@ -11,15 +11,19 @@
 
 ## 📌 Abstract / Özet
 
-Deep neural networks and Large Language Models (LLMs) often exhibit high confidence in incorrect predictions, leading to reliability and hallucination risks in real-world deployments. **TrustLLM** is an academic-grade evaluation framework designed to quantify epistemic and aleatoric uncertainty, perform post-hoc confidence calibration, and mitigate overconfidence via **SpaCy-based Part-of-Speech (POS) Parsing**, **Uncertainty-Guided Model Routing**, **Reliability Diagram Visualizations**, and an **Uncertainty-Gated System Refusal Mechanism**.
+Deep neural networks and Large Language Models (LLMs) often exhibit high confidence in incorrect or subjective predictions, leading to reliability and hallucination risks in real-world deployments. **TrustLLM** is an academic-grade evaluation framework designed to quantify epistemic and aleatoric uncertainty, perform post-hoc confidence calibration, and mitigate overconfidence via **Dual-Signal Subjectivity Filtering**, **SpaCy-based Part-of-Speech (POS) Parsing**, **Uncertainty-Guided Model Routing**, **Reliability Diagram Visualizations**, and an **Uncertainty-Gated System Refusal Mechanism**.
 
-Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış tahminlerde dahi yüksek özgüven (overconfidence) üretme eğilimindedir. **TrustLLM**, bu modellerde belirsizliği nicelleştirmek, post-hoc kalibrasyon uygulamak, **SpaCy tabanlı dilbilgisel (POS) varlık izolasyonu** yapmak, **ikili model yönlendirmesi (routing)**, **Reliability Diagrams** görselleştirmeleri ve **Belirsizlik Tabanlı Sistem Reddetme (Refusal System)** katmanı ile halüsinasyon riskini en aza indirmek amacıyla geliştirilmiş araştırma seviyesinde modüler bir sistemdir.
+Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış veya öznel tahminlerde dahi yüksek özgüven (overconfidence) üretme eğilimindedir. **TrustLLM**, bu modellerde belirsizliği nicelleştirmek, post-hoc kalibrasyon uygulamak, **Çifte Sinyalli (Dual-Signal) Öznellik Ön-Filtrelemesi**, **SpaCy tabanlı dilbilgisel (POS) varlık izolasyonu** yapmak, **ikili model yönlendirmesi (routing)**, **Reliability Diagrams** görselleştirmeleri ve **Belirsizlik Tabanlı Sistem Reddetme (Refusal System)** katmanı ile halüsinasyon riskini en aza indirmek amacıyla geliştirilmiş araştırma seviyesinde modüler bir sistemdir.
 
 ---
 
 ## 🌍 Multilingual Highlights
 
 ### 🇬🇧 English
+* **Step 0: Dual-Signal Subjectivity Pre-Filter**
+  * Combines **Syntactic Superlative Parsing (`POS=JJS`)** with **Semantic Entropy Spreading ($H(S)$)**.
+  * Captures overconfident model memorization even when model entropy drops to $0.0000$ on subjective prompts.
+
 * **Step 1: Linguistic Parsing & Token Filtering**
   * Parses syntax dependency trees using **SpaCy (`en_core_web_sm`)**.
   * Filters out non-informative tokens (`ADJ`, `VERB`, `ADP`) to isolate target entities (`NOUN`, `PROPN`).
@@ -41,6 +45,10 @@ Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış tahminlerde dahi y
 ---
 
 ### 🇹🇷 Türkçe
+* **0. Adım: Çifte Sinyalli (Dual-Signal) Öznellik Ön-Filtresi**
+  * **Sözcüksel/Sentaks Analizi (`POS=JJS`)** ile **Anlamsal Entropi ($H(S)$)** sinyallerini birleştirir.
+  * Öznel sorularda modeller ezber yapıp $H(S)=0.0000$ üretseler dahi aşırı özgüveni yakalayarak yanıtı maskeler.
+
 * **1. Adım: Dilbilgisel Ayrıştırma ve Varlık İzolasyonu**
   * Sentaks bağımlılık ağaçlarını analiz etmek için **SpaCy (`en_core_web_sm`)** kullanır.
   * Bilgi taşımayan kelime türlerini (`ADJ`, `VERB`, `ADP`) eleyerek yalnızca hedef varlıkları (`NOUN`, `PROPN`) izole eder.
@@ -62,6 +70,10 @@ Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış tahminlerde dahi y
 ---
 
 ### 🇩🇪 Deutsch
+* **Schritt 0: Dual-Signal Subjektivitäts-Vorfilter**
+  * Kombiniert **Syntaktisches Superlativ-Parsing (`POS=JJS`)** mit **Semantischer Entropie ($H(S)$)**.
+  * Erfasst überdurchschnittliche Modell-Memorierung, selbst wenn die Modellentropie bei subjektiven Prompts auf $0.0000$ fällt.
+
 * **Schritt 1: Linguistisches Parsing & Entitätsfilterung**
   * Nutzt **SpaCy (`en_core_web_sm`)** zur Syntax-Analyse.
   * Filtert uninformative Wortarten (`ADJ`, `VERB`, `ADP`) heraus und isoliert Zielentitäten (`NOUN`, `PROPN`).
@@ -79,6 +91,21 @@ Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış tahminlerde dahi y
 * **Schritt 4: Unsicherheitsschwellenwert & Ablehnungssystem**
   * Prüft die Zuverlässigkeit anhand eines dynamischen Schwellenwerts ($\tau$).
   * Verhindert Halluzinationen durch Blockieren unsicherer Modellantworten.
+
+---
+
+## 🧠 Step 0: Dual-Signal Subjectivity Pre-Filter Methodology
+
+LLM modellerinin ezberleme (memorization) eğilimi nedeniyle öznel sorularda tek bir yanıta kilitlenerek Anlamsal Entropiyi yanlışlıkla $H(S)=0.0000$ çıkarma riski **Çifte Sinyalli Hibrit Filtre** ile çözülmüştür:
+
+$$\text{IsSubjective} = (\text{HasSuperlativeOrOpinionPattern}) \lor (H(S) \ge \tau_{\text{entropy}})$$
+
+### 📊 Deneysel Doğrulama & Ekran Görüntüleri
+
+| Nesnel Sorgu Testi (`capital of France`) | Öznel Sorgu Testi (`best movie in world`) |
+| :---: | :---: |
+| ![Objective Test](objective_test_capital.png) | ![Subjective Test](subjective_test_movie.png) |
+| *Entropi $0.0000$ & Yapısal Öznel Öge Yok $\rightarrow$ **OBJECTIVE FACT-BASED (PASSED)**.* | *Entropi $0.0000$ fakat `best` sıfatı tespit edildi $\rightarrow$ **SUBJECTIVE / AMBIGUOUS (REFUSED)**.* |
 
 ---
 
@@ -157,53 +184,34 @@ Sistemin başarısını ölçmek amacıyla 10 soruluk ön test ($N=10$) ve 50 so
 \end{tabular}
 \end{table}
 
-### 🚀 Gelecek Çalışmalar ve Sınırlılıklar (Future Work & Limitations)
-
-| Sınırlılık / Çalışma Alanı | Mevcut Durum Analizi (Current Limitation) | Gelecek Çalışma & Çözüm (Future Work) |
-| :--- | :--- | :--- |
-| **Öznellik Duyarlı Reddetme**<br>*(Subjectivity-Aware Refusal)* | Sistem, *"best food in France"* ($\text{Score}=0.9485$) ve *"best human in France"* ($\text{Score}=0.9400$) gibi nesnel doğrusu (Ground Truth) olmayan öznel sorularda yüksek özgüven üreterek emniyet filtresini aşmaktadır. | Sisteme **Intent & Subjectivity Detection** katmanı eklenecek; öznel (opinion-based) ve nesnel (fact-based) sorgular ayırt edilerek öznel sorularda doğrudan reddetme (Refusal) kararı alınacaktır. |
-| **Gelişmiş Model Ailesi**<br>*(Model Scaling)* | Benchmark değerlendirmeleri temel düzeydeki hafif jeneratif modeller (GPT-2 Base ve Qwen1.5-0.5B) ile sınırlıdır. | Benchmark testleri **Llama-3 (8B)** ve **Mistral (7B)** gibi daha yüksek parametreli açık kaynaklı mimarilerle genişletilecektir. |
-| **Sistem Servis Mimarisi**<br>*(Production Deployment)* | Sistem şu anda yalnızca interaktif araştırma paneli (Streamlit) üzerinden lokal olarak çalışmaktadır. | Arayüzün arkasına **FastAPI tabanlı REST API** uç noktası (`/v1/predict_with_safety`) kurulacaktır. |
-
-📄 LaTeX Tablo Kodu (Makale ve Tez İçin)
-\begin{table}[h]
-\centering
-\caption{Identified Limitations and Proposed Future Extensions of TrustLLM Framework}
-\label{tab:trustllm_future_work}
-\begin{tabular}{|p{3.5cm}|p{5.5cm}|p{6cm}|}
-\hline
-\textbf{Focus Area} & \textbf{Current Limitation} & \textbf{Proposed Solution (Future Work)} \\ \hline
-\textbf{Subjectivity-Aware Refusal} & Overconfidence ($>0.94$) on subjective queries without Ground Truth (e.g., \textit{"best food in France"}). & Integrate Intent \& Subjectivity Detection to force automatic refusal on opinion-based prompts. \\ \hline
-\textbf{Model Scaling} & Evaluation is restricted to lightweight base models (GPT-2 and Qwen1.5-0.5B). & Extend evaluation benchmarks to larger open-source LLMs (Llama-3 8B, Mistral 7B). \\ \hline
-\textbf{Production Deployment} & System operates locally via interactive Streamlit interface. & Implement a FastAPI microservice endpoint (\texttt{/v1/predict\_with\_safety}) for external integrations. \\ \hline
-\end{tabular}
-\end{table}
-
 📂 Architecture & Directory Tree
 
 TrustLLM-Uncertainty-Quantification/
 │
-├── notebooks/                     # Experimental validation notebooks & figures
+├── src/                           # Modular Production Engine
+│   ├── __init__.py
+│   ├── subjectivity.py            # Dual-Signal Subjectivity Pre-Filter
+│   ├── extraction.py              # SpaCy POS Entity Isolation Engine
+│   ├── metrics.py                 # ECE, Brier Score & Semantic Entropy
+│   ├── calibration.py             # Temperature Scaling (L-BFGS)
+│   └── uncertainty.py             # Semantic Clustering
+│
+├── notebooks/                     # Experimental validation notebooks
 │   ├── 05_week/calibration_ece.ipynb
 │   ├── 06_week/temperature_scaling.ipynb
 │   └── 07_week/semantic_uncertainty.ipynb
-│
-├── src/                           # Modular production framework
-│   ├── __init__.py
-│   ├── metrics.py                 # ECE, Brier Score & Semantic Entropy
-│   ├── calibration.py             # TemperatureScaler module (L-BFGS)
-│   └── uncertainty.py             # MC Dropout & Semantic Clustering
 │
 ├── app.py                         # Streamlit Research-Grade Interactive Dashboard
 ├── evaluate_benchmark_50.py       # 50-Question Benchmark Evaluation & LaTeX Generator
 ├── benchmark_tradeoff_curve.png   # Baseline (N=10) Trade-off Chart
 ├── benchmark_tradeoff_curve_50.png# Final Calibrated Benchmark (N=50) Chart
-├── best_food_analysis.png         # Subjective Prompt Test Figure 1
-├── best_human_analysis.png        # Subjective Prompt Test Figure 2
+├── objective_test_capital.png     # Fact-Based Proof Image
+├── subjective_test_movie.png      # Subjective Refusal Proof Image
 ├── requirements.txt               # Dependencies
 └── README.md                      # Multilingual Academic Documentation
 
 🛠️ Installation & Execution / Kurulum
+
 # 1. Sanal Ortamı Aktifleştirin
 .\.venv\Scripts\Activate.ps1
 
