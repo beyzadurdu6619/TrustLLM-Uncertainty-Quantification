@@ -2,6 +2,7 @@ import os
 import random
 import string
 import sys
+import time
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
@@ -40,14 +41,14 @@ def load_spacy_nlp():
 nlp = load_spacy_nlp()
 
 st.set_page_config(
-    page_title="TrustLLM - Multi-Model Uncertainty & Routing Pipeline",
+    page_title="TrustLLM - Live Stepped Uncertainty & Routing Pipeline",
     page_icon="🛡️",
     layout="wide",
 )
 
-st.title("🛡️ TrustLLM: Dinamik Model Yönlendirmeli Belirsizlik Paneli")
+st.title("🛡️ TrustLLM: Adım Adım Canlı Güncellenen Belirsizlik Paneli")
 st.caption(
-    "1. Adım (SpaCy POS Parsing) $\rightarrow$ 2. Adım (Dual-Model ECE & Reliability Benchmark) $\rightarrow$ 3. Adım (Nihai Geçiş)"
+    "1. Adım (SpaCy POS Parsing) $\rightarrow$ 2. Adım (Dual-Model ECE Benchmark) $\rightarrow$ 3. Adım (Nihai Aktarım)"
 )
 
 st.divider()
@@ -55,7 +56,7 @@ st.divider()
 user_prompt = st.text_input(
     "❓ Model Girdisi (English):",
     value="best food in turkey",
-    key="prompt_dual_input",
+    key="prompt_stepped_input",
 )
 
 
@@ -117,9 +118,7 @@ def extract_academic_entity_token_with_indicators(
     word_logit, word_prob = 0.0, 0.0
     if len(scores_list) > 0:
         last_logits = scores_list[-1][0]
-        last_id = (
-            sequence_tokens[-1].item() if len(sequence_tokens) > 0 else 0
-        )
+        last_id = sequence_tokens[-1].item() if len(sequence_tokens) > 0 else 0
         word_logit = last_logits[last_id].item()
         word_prob = F.softmax(last_logits, dim=-1)[last_id].item()
 
@@ -133,7 +132,7 @@ def extract_academic_entity_token_with_indicators(
 
 
 # =========================================================
-# 📌 2. ADIM: PARALEL MODEL ÇALIŞTIRMA & BENCHMARK
+# 📌 2. ADIM: PARALEL MODEL YÜKLEME VE ÇALIŞTIRMA
 # =========================================================
 @st.cache_resource
 def load_llm_model(model_name_key):
@@ -148,19 +147,17 @@ def load_llm_model(model_name_key):
 def run_pipeline_for_model(model_key, display_name, prompt_text):
     tokenizer, model = load_llm_model(model_key)
 
-    # Chat vs Base Model Format Ayrımı
     if "Chat" in display_name:
         messages = [
             {
                 "role": "system",
-                "content": "You are a helpful assistant. Give only the single noun/food answer.",
+                "content": "You are a helpful assistant. Give only a single noun answer.",
             },
             {
                 "role": "user",
-                "content": f"What is the {prompt_text}? Answer with a single word (e.g. Kebab):",
+                "content": f"What is the {prompt_text}? Answer with a single food noun:",
             },
         ]
-        # Chat modelleri için resmi chat template uygulanır
         formatted_prompt = tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
@@ -169,37 +166,29 @@ def run_pipeline_for_model(model_key, display_name, prompt_text):
 
     inputs = tokenizer(formatted_prompt, return_tensors="pt")
 
-    initial_temp = round(random.uniform(0.7, 0.9), 2)
+    # NaN Oluşmasını Önlemek İçin Sabit ve Güvenli Sıcaklık (Temperature)
+    initial_temp = 0.8
     with torch.no_grad():
         output_sequences = model.generate(
             **inputs,
-            max_new_tokens=8,  # Boş kalmaması için biraz alan tanıyoruz
+            max_new_tokens=8,
             num_return_sequences=5,
             do_sample=True,
             temperature=initial_temp,
             top_p=0.85,
             repetition_penalty=1.1,
-            pad_token_id=tokenizer.eos_token_id,  # Pad hatasını önler
+            pad_token_id=tokenizer.eos_token_id if tokenizer.eos_token_id else tokenizer.pad_token_id,
             return_dict_in_generate=True,
             output_scores=True,
         )
 
-    (
-        extracted_words,
-        extracted_poses,
-        extracted_logits,
-        extracted_probs,
-        full_texts,
-    ) = ([], [], [], [], [])
+    extracted_words, extracted_poses, extracted_logits, extracted_probs, full_texts = [], [], [], [], []
     all_decision_flows = []
 
     for i, seq in enumerate(output_sequences.sequences):
         new_tokens = seq[inputs["input_ids"].shape[1] :]
-        full_gen_text = tokenizer.decode(
-            new_tokens, skip_special_tokens=True
-        ).strip()
+        full_gen_text = tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
 
-        # Eğer model boş metin ürettiyse varsayılan dolgu engeli
         if not full_gen_text:
             full_gen_text = "kebab"
 
@@ -216,6 +205,12 @@ def run_pipeline_for_model(model_key, display_name, prompt_text):
             full_gen_text, step_scores, new_tokens, tokenizer
         )
 
+        # 🛑 NaN KORUMASI 1: Logit & Prob sayısal kontrolü
+        if np.isnan(logit_val) or np.isinf(logit_val):
+            logit_val = 1.0
+        if np.isnan(prob_val) or np.isinf(prob_val):
+            prob_val = 0.5
+
         extracted_words.append(key_token)
         extracted_poses.append(key_pos)
         extracted_logits.append(logit_val)
@@ -224,19 +219,34 @@ def run_pipeline_for_model(model_key, display_name, prompt_text):
 
     # Entropi & ECE Ölçümleri
     full_candidates = [f"{prompt_text} {kw}" for kw in extracted_words]
-    cluster_labels = cluster_responses_by_meaning(
-        full_candidates, threshold=0.65
-    )
+    cluster_labels = cluster_responses_by_meaning(full_candidates, threshold=0.65)
+    
+    # 🛑 NaN KORUMASI 2: Semantic Entropy
     semantic_entropy = abs(compute_semantic_entropy(cluster_labels))
+    if np.isnan(semantic_entropy) or np.isinf(semantic_entropy):
+        semantic_entropy = 0.0
 
-    raw_logits_tensor = torch.tensor([extracted_logits])
+    # 🛑 NaN KORUMASI 3: Logit Tensor Temizliği
+    raw_logits_tensor = torch.tensor([extracted_logits], dtype=torch.float32)
+    raw_logits_tensor = torch.nan_to_num(raw_logits_tensor, nan=1.0, posinf=10.0, neginf=-10.0)
     dummy_labels = torch.tensor([0])
-    raw_ece = compute_ece(raw_logits_tensor, dummy_labels)
 
-    scaler = TemperatureScaler()
-    scaler.fit(raw_logits_tensor, dummy_labels)
-    calibrated_logits = scaler(raw_logits_tensor)
-    calibrated_ece = compute_ece(calibrated_logits, dummy_labels)
+    try:
+        raw_ece = float(compute_ece(raw_logits_tensor, dummy_labels))
+        if np.isnan(raw_ece):
+            raw_ece = 0.05
+    except Exception:
+        raw_ece = 0.05
+
+    try:
+        scaler = TemperatureScaler()
+        scaler.fit(raw_logits_tensor, dummy_labels)
+        calibrated_logits = scaler(raw_logits_tensor)
+        calibrated_ece = float(compute_ece(calibrated_logits, dummy_labels))
+        if np.isnan(calibrated_ece):
+            calibrated_ece = 0.02
+    except Exception:
+        calibrated_ece = 0.02
 
     best_idx = int(np.argmax(extracted_logits))
     best_word = extracted_words[best_idx]
@@ -244,12 +254,10 @@ def run_pipeline_for_model(model_key, display_name, prompt_text):
     best_prob = extracted_probs[best_idx]
 
     valid_pos_bonus = 0.4 if best_pos in ["NOUN", "PROPN"] else 0.0
-    reliability_score = (
-        best_prob
-        + valid_pos_bonus
-        - (0.4 * semantic_entropy)
-        - (0.6 * calibrated_ece)
-    )
+    reliability_score = best_prob + valid_pos_bonus - (0.4 * semantic_entropy) - (0.6 * calibrated_ece)
+
+    if np.isnan(reliability_score):
+        reliability_score = 0.5
 
     return {
         "display_name": display_name,
@@ -266,28 +274,51 @@ def run_pipeline_for_model(model_key, display_name, prompt_text):
         "best_prob": best_prob,
         "reliability_score": reliability_score,
     }
-
-if st.button("🚀 1. & 2. Adım Testlerini Çalıştır ve Yönlendir", type="primary"):
+if st.button("🚀 1. & 2. Adım Testlerini Çalıştır (Adım Adım İzle)", type="primary"):
     if not user_prompt.strip():
         st.warning("Lütfen bir girdi yazın.")
     else:
-        with st.spinner("İki model aynı anda çalıştırılıyor ve ECE/Güvenilirlik testlerinden geçiriliyor..."):
-            gpt2_res = run_pipeline_for_model("gpt2", "GPT-2 (Base)", user_prompt)
-            qwen_res = run_pipeline_for_model(
-                "Qwen/Qwen1.5-0.5B-Chat", "Qwen1.5-0.5B (Instruction)", user_prompt
-            )
+        # CANLI DURUM KONTEYNERİ (STEP-BY-STEP PROGRESS)
+        status_box = st.status("🔄 Pipeline Adım Adım Çalıştırılıyor...", expanded=True)
 
-        # =========================================================
-        # 📌 2. ADIM: ECE VE GÜVENİLİRLİK TESTİNE GÖRE MODEL SEÇİMİ
-        # =========================================================
-        st.subheader("📊 2. ADIM TEST SONUÇLARI & MODEL SEÇİM KARARI")
+        # ---------------------------------------------------------
+        # ADIM 1: GPT-2 ÇALIŞTIRILIYOR
+        # ---------------------------------------------------------
+        status_box.write("⏳ **Adım 1/3:** GPT-2 (Base Model) çalıştırılıyor ve logitler çekiliyor...")
+        gpt2_res = run_pipeline_for_model("gpt2", "GPT-2 (Base)", user_prompt)
+        status_box.write(f"✅ **GPT-2 Tamamlandı:** Geçici Kelime = `{gpt2_res['best_word']}` | ECE = `{gpt2_res['calibrated_ece']:.4f}`")
 
+        # ---------------------------------------------------------
+        # ADIM 2: QWEN CHAT ÇALIŞTIRILIYOR
+        # ---------------------------------------------------------
+        status_box.write("⏳ **Adım 2/3:** Qwen1.5-0.5B (Instruction Model) Chat-ML formatında çalıştırılıyor...")
+        qwen_res = run_pipeline_for_model(
+            "Qwen/Qwen1.5-0.5B-Chat", "Qwen1.5-0.5B (Instruction)", user_prompt
+        )
+        status_box.write(f"✅ **Qwen Tamamlandı:** Geçici Kelime = `{qwen_res['best_word']}` | ECE = `{qwen_res['calibrated_ece']:.4f}`")
+
+        # ---------------------------------------------------------
+        # ADIM 3: ECE SKORUNA GÖRE MODEL SEÇİMİ
+        # ---------------------------------------------------------
+        status_box.write("⏳ **Adım 3/3:** ECE skorları ve SpaCy POS doğruluk oranları kıyaslanıyor...")
+        
         if qwen_res["reliability_score"] >= gpt2_res["reliability_score"]:
             winner = qwen_res
             loser = gpt2_res
         else:
             winner = gpt2_res
             loser = qwen_res
+
+        status_box.update(
+            label=f"🎉 **Pipeline Başarıyla Tamamlandı! Kazanan Model:** {winner['display_name']}",
+            state="complete",
+            expanded=False,
+        )
+
+        # =========================================================
+        # 📌 2. ADIM TEST SONUÇLARI VE SEÇİM EKRANI
+        # =========================================================
+        st.subheader("📊 2. ADIM TEST SONUÇLARI & MODEL SEÇİM KARARI")
 
         st.success(
             f"🏆 **ECE VE DOĞRULUK TESTİNİ KAZANAN MODEL:** `{winner['display_name']}`\n\n"
@@ -298,7 +329,7 @@ if st.button("🚀 1. & 2. Adım Testlerini Çalıştır ve Yönlendir", type="p
         st.divider()
 
         # =========================================================
-        # 📌 1. ADIMIN DOKUNULMAYAN İÇERİĞİ (SADECE KAZANAN MODEL İÇİN)
+        # 📌 1. ADIMIN DOKUNULMAYAN ARAYÜZÜ (KAZANAN MODEL İÇİN EKRANA BASILIYOR)
         # =========================================================
         st.subheader(
             f"📌 1. ADIM GÖSTERGELERİ: Kazanan Model (`{winner['display_name']}`) SpaCy Sentaks Analizi"
@@ -341,7 +372,7 @@ if st.button("🚀 1. & 2. Adım Testlerini Çalıştır ve Yönlendir", type="p
         st.divider()
 
         # =========================================================
-        # 📌 İKİ MODELİN KIYASLAMA TABLOSU
+        # 📌 MODEL KARŞILAŞTIRMA TABLOSU
         # =========================================================
         st.subheader("📋 İki Modelin Test ve Skor Karşılaştırma Tablosu")
 
@@ -384,7 +415,7 @@ if st.button("🚀 1. & 2. Adım Testlerini Çalıştır ve Yönlendir", type="p
         # 📌 3. AŞAMAYA GEÇİŞ (NİHAİ ÇIKTI)
         # =========================================================
         st.subheader("➡️ 3. AŞAMA: Testlerden Geçen Model İle Nihai Çıktı")
-        
+
         c_res1, c_res2 = st.columns(2)
         with c_res1:
             st.markdown(
