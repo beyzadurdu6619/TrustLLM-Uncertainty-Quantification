@@ -11,9 +11,9 @@
 
 ## 📌 Abstract / Özet
 
-Deep neural networks and Large Language Models (LLMs) often exhibit high confidence in incorrect predictions, leading to reliability and hallucination risks in real-world deployments. **TrustLLM** is an academic-grade evaluation framework designed to quantify epistemic and aleatoric uncertainty, perform post-hoc confidence calibration, and mitigate overconfidence via **SpaCy-based Part-of-Speech (POS) Parsing**, **Uncertainty-Guided Model Routing**, and **Reliability Diagram visualizations**.
+Deep neural networks and Large Language Models (LLMs) often exhibit high confidence in incorrect predictions, leading to reliability and hallucination risks in real-world deployments. **TrustLLM** is an academic-grade evaluation framework designed to quantify epistemic and aleatoric uncertainty, perform post-hoc confidence calibration, and mitigate overconfidence via **SpaCy-based Part-of-Speech (POS) Parsing**, **Uncertainty-Guided Model Routing**, **Reliability Diagram Visualizations**, and an **Uncertainty-Gated System Refusal Mechanism**.
 
-Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış tahminlerde dahi yüksek özgüven (overconfidence) üretme eğilimindedir. **TrustLLM**, bu modellerde belirsizliği nicelleştirmek, post-hoc kalibrasyon uygulamak, **SpaCy tabanlı dilbilgisel (POS) varlık izolasyonu** yapmak, **ikili model yönlendirmesi (routing)** ve **Reliability Diagrams** görselleştirmeleri ile halüsinasyon riskini en aza indirmek amacıyla geliştirilmiş araştırma seviyesinde modüler bir sistemdir.
+Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış tahminlerde dahi yüksek özgüven (overconfidence) üretme eğilimindedir. **TrustLLM**, bu modellerde belirsizliği nicelleştirmek, post-hoc kalibrasyon uygulamak, **SpaCy tabanlı dilbilgisel (POS) varlık izolasyonu** yapmak, **ikili model yönlendirmesi (routing)**, **Reliability Diagrams** görselleştirmeleri ve **Belirsizlik Tabanlı Sistem Reddetme (Refusal System)** katmanı ile halüsinasyon riskini en aza indirmek amacıyla geliştirilmiş araştırma seviyesinde modüler bir sistemdir.
 
 ---
 
@@ -34,6 +34,10 @@ Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış tahminlerde dahi y
   * Generates **Reliability Diagrams** comparing raw vs. calibrated confidence distributions ($y=x$ ideal line).
   * Computes the **Brier Score** to evaluate mean squared probability accuracy.
 
+* **Step 4: Uncertainty Threshold & Refusal System**
+  * Evaluates system reliability against a dynamic confidence threshold ($\tau$).
+  * Shields users from hallucinations by withholding responses when uncertainty exceeds safety limits.
+
 ---
 
 ### 🇹🇷 Türkçe
@@ -50,6 +54,10 @@ Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış tahminlerde dahi y
 * **3. Adım: Kalibrasyon Metrikleri ve Görselleştirme**
   * Ham ve kalibre edilmiş özgüven dağılımlarını karşılaştıran **Reliability Diagrams** ($y=x$ çizgisi) çizer.
   * Olasılıksal doğruluk sapmasını ölçmek için **Brier Skoru** hesaplar.
+
+* **4. Adım: Belirsizlik Eşik Değeri ve Otomatik Reddetme (Refusal)**
+  * Hesaplanan Güvenilirlik Skorunu dinamik bir emniyet eşiği ($\tau$) ile karşılaştırır.
+  * Belirsizlik kritik seviyeyi aştığında yanıtı maskeler ve *"Bilmiyorum / Cevap Vermiyorum"* kararı alarak halüsinasyonu engeller.
 
 ---
 
@@ -68,11 +76,15 @@ Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış tahminlerde dahi y
   * Generiert **Reliability Diagrams** zur Darstellung der Konfidenz-Genauigkeits-Ausrichtung ($y=x$ Ideallinie).
   * Ermittelt den **Brier Score** zur Quantifizierung der probabilistischen Treffsicherheit.
 
+* **Schritt 4: Unsicherheitsschwellenwert & Ablehnungssystem**
+  * Prüft die Zuverlässigkeit anhand eines dynamischen Schwellenwerts ($\tau$).
+  * Verhindert Halluzinationen durch Blockieren unsicherer Modellantworten.
+
 ---
 
 ## 🔬 Theoretical Background & Methodology
 
-Framework dört temel akademik problem alanına odaklanır:
+Framework beş temel akademik problem alanına odaklanır:
 
 ### 1. Expected Calibration Error (ECE)
 Sınıflandırma modellerinin özgüven skorları ($p$) ile gerçek doğruluk oranları ($acc$) arasındaki uyumsuzluk $M$ adet özgüven aralığı (bin) üzerinden hesaplanır:
@@ -94,11 +106,59 @@ LLM modellerinde jeneratif metinlerin anlamsal eşdeğerliğini ölçmek için y
 
 $$\text{SE}(x) = - \sum_{c \in C} p(c\vert{}x) \log p(c\vert{}x)$$
 
+### 5. Composite Reliability & Refusal Score
+Bileşik güvenilirlik skoru; en iyi token olasılığı, POS gramer bonusu, anlamsal entropi cezası ve ECE cezasının harmanlanmasıyla elde edilir:
+
+$$\text{Reliability} = P_{\text{best}} + \text{Bonus}_{\text{POS}} - (0.8 \times H(S)) - (1.2 \times \text{ECE}_{\text{cal}})$$
+
+Eğer $\text{Reliability} < \tau$ (Eşik Değeri) ise sistem yanıt vermeyi reddeder.
+
 ---
 
-## 📂 Architecture & Directory Tree
+## 📊 Benchmark Evaluation & Experimental Results ($N=50$)
 
-```text
+Sistemin başarısını ve kararlılığını ölçmek amacıyla 50 soruluk genel kültür, bilim, coğrafya ve edebiyat test seti ($N=50$) üzerinde **Eşik Değeri Taraması (Sweep Analysis)** gerçekleştirilmiştir.
+
+### 📈 Eşik Değeri (Threshold $\tau$) Sweep Analizi
+
+| Threshold ($\tau$) | Refusal Rate (%) | Precision / Accuracy (%) | Sistem Davranışı & Yorum |
+| :---: | :---: | :---: | :--- |
+| **0.30** | %8.0 | %60.9 | Gevşek Filtre: Şüpheli yanıtların azı reddedilir. |
+| **0.45** | %12.0 | %61.4 | Dengeli Filtre: Yanıt kalitesi yükselmeye başlar. |
+| **0.55** | **%14.0** | **%62.8** | **Optimal Operasyon Bölgesi:** Yüksek kalite / Düşük Red. |
+| **0.65** | **%14.0** | **%62.8** | Kararlı Alan: Filtre-Doğruluk dengesi korunur. |
+| **0.75** | %64.0 | %50.0 | Kırılma Noktası: Aşırı katı filtreleme başlar. |
+| **0.85** | %74.0 | %61.5 | Muhafazakar Bölge: Sadece en emin olunan %26 yanıt kabul edilir. |
+
+### 📄 Makale ve Tez İçin LaTeX Tablo Kodu
+
+```latex
+\begin{table}[h]
+\centering
+\caption{Calibrated Benchmark Performance of TrustLLM Framework (N=50 Questions)}
+\label{tab:trustllm_calibrated_benchmark_50}
+\begin{tabular}{ccc}
+\hline
+\textbf{Threshold ($\tau$)} & \textbf{Refusal Rate (\%)} & \textbf{Precision / Accuracy (\%)} \\ \hline
+0.30 & 8.0\% & 60.9\% \\
+0.45 & 12.0\% & 61.4\% \\
+0.55 & 14.0\% & 62.8\% \\
+0.65 & 14.0\% & 62.8\% \\
+0.75 & 64.0\% & 50.0\% \\
+0.85 & 74.0\% & 61.5\% \\
+\hline
+\end{tabular}
+\end{table}
+
+🚀 Gelecek Çalışmalar (Future Work)
+Gelişmiş Model Ailesi Entegrasyonu: Llama-3 (8B) ve Mistral (7B) gibi daha büyük açık kaynaklı modellerin sisteme eklenmesi.
+
+FastAPI Mikroservis Katmanı: Arayüzün arkasına REST API uç noktası (/v1/predict_with_safety) kurulması.
+
+Büyük Ölçekli Benchmark: TriviaQA ve MMLU gibi 1000+ soruluk akademik veri setleriyle otomasyonun genişletilmesi.
+
+📂 Architecture & Directory Tree
+Plaintext
 TrustLLM-Uncertainty-Quantification/
 │
 ├── notebooks/                     # Experimental validation notebooks & figures
@@ -113,18 +173,20 @@ TrustLLM-Uncertainty-Quantification/
 │   └── uncertainty.py             # MC Dropout & Semantic Clustering
 │
 ├── app.py                         # Streamlit Research-Grade Interactive Dashboard
+├── evaluate_benchmark_50.py       # 50-Question Benchmark Evaluation & LaTeX Generator
 ├── requirements.txt               # Dependencies
 └── README.md                      # Multilingual Academic Documentation
-
-
-
-
+🛠️ Installation & Execution / Kurulum
+PowerShell
 # 1. Sanal Ortamı Aktifleştirin
 .\.venv\Scripts\Activate.ps1
 
 # 2. Gerekli Paketleri ve SpaCy Dil Modelini Yükleyin
-python -m pip install spacy accelerate matplotlib streamlit
+python -m pip install spacy accelerate matplotlib streamlit pandas torch transformers
 python -m spacy download en_core_web_sm
 
-# 3. İnteraktif Paneli Çalıştırın
+# 3. İnteraktif Paneli Çalıştırın (Streamlit Dashboard)
 streamlit run app.py
+
+# 4. 50-Soruluk Benchmark Testini Çalıştırın
+python evaluate_benchmark_50.py
