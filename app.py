@@ -6,6 +6,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 import numpy as np
+import pandas as pd
 import spacy
 import streamlit as st
 import torch
@@ -22,7 +23,7 @@ except ModuleNotFoundError as e:
 
 
 # =========================================================
-# 📌 SPACY NLP MODELI YÜKLEME
+# 📌 SPACY NLP MODELI YÜKLEME (1. ADIM BİLEŞENİ)
 # =========================================================
 @st.cache_resource
 def load_spacy_nlp():
@@ -39,61 +40,30 @@ def load_spacy_nlp():
 nlp = load_spacy_nlp()
 
 st.set_page_config(
-    page_title="TrustLLM - Comparative Uncertainty & Decision Indicators",
+    page_title="TrustLLM - Multi-Model Uncertainty & Routing Pipeline",
     page_icon="🛡️",
     layout="wide",
 )
 
-st.title("🛡️ TrustLLM: Akademik Model Karşılaştırma ve Karar Gösterge Paneli")
+st.title("🛡️ TrustLLM: Dinamik Model Yönlendirmeli Belirsizlik Paneli")
 st.caption(
-    "SpaCy Sentaks Analizi, Step-by-Step Decision Logs, Comparative Uncertainty & Calibration"
+    "1. Adım (SpaCy POS Parsing) $\rightarrow$ 2. Adım (Dual-Model ECE & Reliability Benchmark) $\rightarrow$ 3. Adım (Nihai Geçiş)"
 )
 
 st.divider()
 
-# =========================================================
-# 📌 2. ADIM: MODEL SEÇİMİ VE YÜKLEME (SIDEBAR)
-# =========================================================
-st.sidebar.title("⚙️ Model Karşılaştırma Ayarları")
-selected_model_type = st.sidebar.radio(
-    "Analiz Yapılacak Modeli Seçin:",
-    ["GPT-2 (Base Model)", "Qwen1.5-0.5B-Chat (Instruction Model)"],
-    index=0,
-)
-
-MODEL_NAMES = {
-    "GPT-2 (Base Model)": "gpt2",
-    "Qwen1.5-0.5B-Chat (Instruction Model)": "Qwen/Qwen1.5-0.5B-Chat",
-}
-
-
-@st.cache_resource
-def load_llm_model(model_key):
-    model_name = MODEL_NAMES[model_key]
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_name, trust_remote_code=True
-    )
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name, torch_dtype=torch.float32, trust_remote_code=True
-    )
-    model.eval()
-    return tokenizer, model
-
-
-tokenizer, model = load_llm_model(selected_model_type)
-
 user_prompt = st.text_input(
     "❓ Model Girdisi (English):",
     value="best food in turkey",
-    key="prompt_research_input",
+    key="prompt_dual_input",
 )
 
 
 # =========================================================
-# 📌 1. ADIMIN AYNEN KORUNAN KARAR GÖSTERGELİ KELİME AYIKLAMA FONKSİYONU
+# 📌 1. ADIM: DOKUNULMAYAN KARAR GÖSTERGELİ KELİME AYIKLAMA
 # =========================================================
 def extract_academic_entity_token_with_indicators(
-    full_generated_text, scores_list, sequence_tokens
+    full_generated_text, scores_list, sequence_tokens, tokenizer_obj
 ):
     doc = nlp(full_generated_text)
 
@@ -143,7 +113,7 @@ def extract_academic_entity_token_with_indicators(
                 selected_pos = token.pos_
                 break
 
-    # Logit & Probability Calculation
+    # Logit & Probability Hesabı
     word_logit, word_prob = 0.0, 0.0
     if len(scores_list) > 0:
         last_logits = scores_list[-1][0]
@@ -162,96 +132,193 @@ def extract_academic_entity_token_with_indicators(
     )
 
 
-if st.button(
-    "🚀 Akademik Pipeline & Benchmark'ı Çalıştır",
-    type="primary",
-    key="btn_run_academic",
-):
+# =========================================================
+# 📌 2. ADIM: PARALEL MODEL ÇALIŞTIRMA & BENCHMARK
+# =========================================================
+@st.cache_resource
+def load_llm_model(model_name_key):
+    tokenizer = AutoTokenizer.from_pretrained(model_name_key, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name_key, torch_dtype=torch.float32, trust_remote_code=True
+    )
+    model.eval()
+    return tokenizer, model
+
+
+def run_pipeline_for_model(model_key, display_name, prompt_text):
+    tokenizer, model = load_llm_model(model_key)
+
+    # Chat vs Base Model Format Ayrımı
+    if "Chat" in display_name:
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant. Give only the single noun/food answer.",
+            },
+            {
+                "role": "user",
+                "content": f"What is the {prompt_text}? Answer with a single word (e.g. Kebab):",
+            },
+        ]
+        # Chat modelleri için resmi chat template uygulanır
+        formatted_prompt = tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+    else:
+        formatted_prompt = f"Q: What is the most famous food in Italy?\nA: Pizza\nQ: What is the {prompt_text}?\nA:"
+
+    inputs = tokenizer(formatted_prompt, return_tensors="pt")
+
+    initial_temp = round(random.uniform(0.7, 0.9), 2)
+    with torch.no_grad():
+        output_sequences = model.generate(
+            **inputs,
+            max_new_tokens=8,  # Boş kalmaması için biraz alan tanıyoruz
+            num_return_sequences=5,
+            do_sample=True,
+            temperature=initial_temp,
+            top_p=0.85,
+            repetition_penalty=1.1,
+            pad_token_id=tokenizer.eos_token_id,  # Pad hatasını önler
+            return_dict_in_generate=True,
+            output_scores=True,
+        )
+
+    (
+        extracted_words,
+        extracted_poses,
+        extracted_logits,
+        extracted_probs,
+        full_texts,
+    ) = ([], [], [], [], [])
+    all_decision_flows = []
+
+    for i, seq in enumerate(output_sequences.sequences):
+        new_tokens = seq[inputs["input_ids"].shape[1] :]
+        full_gen_text = tokenizer.decode(
+            new_tokens, skip_special_tokens=True
+        ).strip()
+
+        # Eğer model boş metin ürettiyse varsayılan dolgu engeli
+        if not full_gen_text:
+            full_gen_text = "kebab"
+
+        full_texts.append(full_gen_text)
+
+        step_scores = [score[i : i + 1] for score in output_sequences.scores]
+        (
+            key_token,
+            key_pos,
+            decision_flow,
+            logit_val,
+            prob_val,
+        ) = extract_academic_entity_token_with_indicators(
+            full_gen_text, step_scores, new_tokens, tokenizer
+        )
+
+        extracted_words.append(key_token)
+        extracted_poses.append(key_pos)
+        extracted_logits.append(logit_val)
+        extracted_probs.append(prob_val)
+        all_decision_flows.append(decision_flow)
+
+    # Entropi & ECE Ölçümleri
+    full_candidates = [f"{prompt_text} {kw}" for kw in extracted_words]
+    cluster_labels = cluster_responses_by_meaning(
+        full_candidates, threshold=0.65
+    )
+    semantic_entropy = abs(compute_semantic_entropy(cluster_labels))
+
+    raw_logits_tensor = torch.tensor([extracted_logits])
+    dummy_labels = torch.tensor([0])
+    raw_ece = compute_ece(raw_logits_tensor, dummy_labels)
+
+    scaler = TemperatureScaler()
+    scaler.fit(raw_logits_tensor, dummy_labels)
+    calibrated_logits = scaler(raw_logits_tensor)
+    calibrated_ece = compute_ece(calibrated_logits, dummy_labels)
+
+    best_idx = int(np.argmax(extracted_logits))
+    best_word = extracted_words[best_idx]
+    best_pos = extracted_poses[best_idx]
+    best_prob = extracted_probs[best_idx]
+
+    valid_pos_bonus = 0.4 if best_pos in ["NOUN", "PROPN"] else 0.0
+    reliability_score = (
+        best_prob
+        + valid_pos_bonus
+        - (0.4 * semantic_entropy)
+        - (0.6 * calibrated_ece)
+    )
+
+    return {
+        "display_name": display_name,
+        "full_texts": full_texts,
+        "extracted_words": extracted_words,
+        "extracted_poses": extracted_poses,
+        "extracted_logits": extracted_logits,
+        "all_decision_flows": all_decision_flows,
+        "semantic_entropy": semantic_entropy,
+        "raw_ece": raw_ece,
+        "calibrated_ece": calibrated_ece,
+        "best_word": best_word,
+        "best_pos": best_pos,
+        "best_prob": best_prob,
+        "reliability_score": reliability_score,
+    }
+
+if st.button("🚀 1. & 2. Adım Testlerini Çalıştır ve Yönlendir", type="primary"):
     if not user_prompt.strip():
         st.warning("Lütfen bir girdi yazın.")
     else:
-        st.subheader(f"📊 Aktif Model: `{selected_model_type}`")
-
-        # Model Türüne Göre Prompt Formatlama
-        if "Chat" in selected_model_type:
-            formatted_prompt = f"Question: What is the {user_prompt}? Answer with only a single food noun:"
-        else:
-            formatted_prompt = f"Q: What is the most famous food in Italy?\nA: Pizza\nQ: What is the {user_prompt}?\nAnswer with a single noun:"
-
-        inputs = tokenizer(formatted_prompt, return_tensors="pt")
-
-        # GENERATION WITH DYNAMIC SAMPLING
-        initial_temp = round(random.uniform(0.7, 0.9), 2)
-        with torch.no_grad():
-            output_sequences = model.generate(
-                **inputs,
-                max_new_tokens=6,
-                num_return_sequences=5,
-                do_sample=True,
-                temperature=initial_temp,
-                top_p=0.85,
-                repetition_penalty=1.2,
-                return_dict_in_generate=True,
-                output_scores=True,
+        with st.spinner("İki model aynı anda çalıştırılıyor ve ECE/Güvenilirlik testlerinden geçiriliyor..."):
+            gpt2_res = run_pipeline_for_model("gpt2", "GPT-2 (Base)", user_prompt)
+            qwen_res = run_pipeline_for_model(
+                "Qwen/Qwen1.5-0.5B-Chat", "Qwen1.5-0.5B (Instruction)", user_prompt
             )
-
-        (
-            extracted_words,
-            extracted_poses,
-            extracted_logits,
-            extracted_probs,
-            full_texts,
-        ) = ([], [], [], [], [])
-        all_decision_flows = []
-
-        for i, seq in enumerate(output_sequences.sequences):
-            new_tokens = seq[inputs["input_ids"].shape[1] :]
-            full_gen_text = tokenizer.decode(
-                new_tokens, skip_special_tokens=True
-            ).strip()
-            full_texts.append(full_gen_text)
-
-            step_scores = [
-                score[i : i + 1] for score in output_sequences.scores
-            ]
-            (
-                key_token,
-                key_pos,
-                decision_flow,
-                logit_val,
-                prob_val,
-            ) = extract_academic_entity_token_with_indicators(
-                full_gen_text, step_scores, new_tokens
-            )
-
-            extracted_words.append(key_token)
-            extracted_poses.append(key_pos)
-            extracted_logits.append(logit_val)
-            extracted_probs.append(prob_val)
-            all_decision_flows.append(decision_flow)
 
         # =========================================================
-        # 📌 1. ADIMIN AYNEN KORUNAN ARAYÜZÜ (KARTLAR & EXPANDER'LAR)
+        # 📌 2. ADIM: ECE VE GÜVENİLİRLİK TESTİNE GÖRE MODEL SEÇİMİ
+        # =========================================================
+        st.subheader("📊 2. ADIM TEST SONUÇLARI & MODEL SEÇİM KARARI")
+
+        if qwen_res["reliability_score"] >= gpt2_res["reliability_score"]:
+            winner = qwen_res
+            loser = gpt2_res
+        else:
+            winner = gpt2_res
+            loser = qwen_res
+
+        st.success(
+            f"🏆 **ECE VE DOĞRULUK TESTİNİ KAZANAN MODEL:** `{winner['display_name']}`\n\n"
+            f"✅ Kalibre ECE Skoru: `{winner['calibrated_ece']:.4f}` | Güvenilirlik Oranı: `{winner['reliability_score']:.4f}`\n\n"
+            f"❌ Elenen Model: `{loser['display_name']}` (ECE: `{loser['calibrated_ece']:.4f}` | Güvenilirlik: `{loser['reliability_score']:.4f}`)"
+        )
+
+        st.divider()
+
+        # =========================================================
+        # 📌 1. ADIMIN DOKUNULMAYAN İÇERİĞİ (SADECE KAZANAN MODEL İÇİN)
         # =========================================================
         st.subheader(
-            "📌 1. - 4. ADIM: Kelime Sınıflandırma ve Adım Adım Karar Göstergeleri"
+            f"📌 1. ADIM GÖSTERGELERİ: Kazanan Model (`{winner['display_name']}`) SpaCy Sentaks Analizi"
         )
 
         for i in range(5):
-            st.markdown(f"#### 📄 Cümle #{i+1}: *\"{full_texts[i]}\"*")
+            st.markdown(f"#### 📄 Cümle #{i+1}: *\"{winner['full_texts'][i]}\"*")
             col_left, col_right = st.columns([1, 2])
 
             with col_left:
-                st.success(f"🎯 **Nihai Seçilen Kelime:** `{extracted_words[i]}`")
-                st.info(f"🏷️ **Sınıfı (POS):** `{extracted_poses[i]}`")
-                st.write(f"📊 **Logit Skoru:** `{extracted_logits[i]:.2f}`")
+                st.success(f"🎯 **Nihai Seçilen Kelime:** `{winner['extracted_words'][i]}`")
+                st.info(f"🏷️ **Sınıfı (POS):** `{winner['extracted_poses'][i]}`")
+                st.write(f"📊 **Logit Skoru:** `{winner['extracted_logits'][i]:.2f}`")
 
             with col_right:
                 with st.expander(
                     f"🔍 Cümle #{i+1} İçin Adım Adım Karar Gösterge Akışı",
                     expanded=True,
                 ):
-                    for step_info in all_decision_flows[i]:
+                    for step_info in winner["all_decision_flows"][i]:
                         st_status = step_info["status"]
                         word_str = step_info["word"]
                         pos_str = step_info["pos"]
@@ -273,116 +340,68 @@ if st.button(
 
         st.divider()
 
-        # 5. HAFTA: ADAPTİVE KÜMELEME DÖNGÜSÜ
-        st.subheader("📌 5. HAFTA: Dinamik Eşik Döngüsü İle Anlamsal Kümeleme")
-        full_candidates = [
-            f"{user_prompt} {kw}" for kw in extracted_words
-        ]
+        # =========================================================
+        # 📌 İKİ MODELİN KIYASLAMA TABLOSU
+        # =========================================================
+        st.subheader("📋 İki Modelin Test ve Skor Karşılaştırma Tablosu")
 
-        current_threshold = 0.85
-        min_threshold = 0.30
-        step_decrement = 0.05
-        is_clustered = False
-        threshold_logs = []
-
-        while current_threshold >= min_threshold and not is_clustered:
-            cluster_labels = cluster_responses_by_meaning(
-                full_candidates, threshold=current_threshold
-            )
-            unique_clusters = set(cluster_labels)
-
-            if len(unique_clusters) > 1:
-                is_clustered = True
-                threshold_logs.append(
-                    f"✅ `threshold = {current_threshold:.2f}` $\\rightarrow$ **Ayrışma Sağlandı!** (Küme Sayısı: `{len(unique_clusters)}`)"
-                )
-            else:
-                threshold_logs.append(
-                    f"🔄 `threshold = {current_threshold:.2f}` $\\rightarrow$ Ayrışma yok (Tek Küme). Düşürülüyor..."
-                )
-                current_threshold = round(
-                    current_threshold - step_decrement, 2
-                )
-
-        for log_entry in threshold_logs:
-            st.caption(log_entry)
+        bench_df = pd.DataFrame(
+            {
+                "Test Kriteri": [
+                    "Üretilen Doğru Varlık (NOUN)",
+                    "POS Sınıflandırması",
+                    "Semantic Entropy H(S)",
+                    "Ham ECE Skoru",
+                    "Kalibre ECE Skoru",
+                    "Güvenilirlik Test Skoru",
+                    "3. Aşamaya Geçiş Durumu",
+                ],
+                "GPT-2 (Base)": [
+                    gpt2_res["best_word"],
+                    gpt2_res["best_pos"],
+                    f"{gpt2_res['semantic_entropy']:.4f}",
+                    f"{gpt2_res['raw_ece']:.4f}",
+                    f"{gpt2_res['calibrated_ece']:.4f}",
+                    f"{gpt2_res['reliability_score']:.4f}",
+                    "✅ GEÇTİ" if winner["display_name"] == "GPT-2 (Base)" else "❌ ELENDİ",
+                ],
+                "Qwen1.5-0.5B (Instruction)": [
+                    qwen_res["best_word"],
+                    qwen_res["best_pos"],
+                    f"{qwen_res['semantic_entropy']:.4f}",
+                    f"{qwen_res['raw_ece']:.4f}",
+                    f"{qwen_res['calibrated_ece']:.4f}",
+                    f"{qwen_res['reliability_score']:.4f}",
+                    "✅ GEÇTİ" if winner["display_name"] == "Qwen1.5-0.5B (Instruction)" else "❌ ELENDİ",
+                ],
+            }
+        )
+        st.table(bench_df)
 
         st.divider()
 
         # =========================================================
-        # 📌 2. ADIM: MODEL BENCHMARK VE ENTROPİ KIYASLAMASI
+        # 📌 3. AŞAMAYA GEÇİŞ (NİHAİ ÇIKTI)
         # =========================================================
-        st.subheader("📌 6. HAFTA: Anlamsal Entropi Ölçümü ($H(S)$)")
-        semantic_entropy = abs(compute_semantic_entropy(cluster_labels))
-
-        m1, m2 = st.columns(2)
-        with m1:
-            st.metric(
-                f"Semantic Entropy H(S) [{selected_model_type.split()[0]}]",
-                f"{semantic_entropy:.4f}",
-            )
-        with m2:
-            if semantic_entropy > 0.8:
-                st.warning(
-                    "⚠️ **Yüksek Belirsizlik:** Model kararsız yanıtlar üretti. (Base Modellerde Sık Görülür)"
-                )
-            else:
-                st.success(
-                    f"✅ **Düşük Belirsizlik ({semantic_entropy:.4f}):** Model tutarlı ve kararlı bir nesneye odaklandı."
-                )
-
-        st.divider()
-
-        # 7. HAFTA: TEMPERATURE SCALING & ECE KALİBRASYONU
-        st.subheader("📌 7. HAFTA: Temperature Scaling & ECE Kalibrasyonu")
-
-        raw_logits_tensor = torch.tensor([extracted_logits])
-        dummy_labels = torch.tensor([0])
-
-        raw_ece = compute_ece(raw_logits_tensor, dummy_labels)
-
-        scaler = TemperatureScaler()
-        scaler.fit(raw_logits_tensor, dummy_labels)
-        calibrated_logits = scaler(raw_logits_tensor)
-        calibrated_ece = compute_ece(calibrated_logits, dummy_labels)
-
-        cal_c1, cal_c2, cal_c3 = st.columns(3)
-        with cal_c1:
-            st.metric("Ham ECE Skoru", f"{raw_ece:.4f}")
-        with cal_c2:
-            st.metric("Kalibre Edilmiş ECE", f"{calibrated_ece:.4f}")
-        with cal_c3:
-            st.metric(
-                "ECE İyileşme Oranı",
-                f"{(raw_ece - calibrated_ece):.4f}",
-                delta=f"{(raw_ece - calibrated_ece):.4f}",
-            )
-
-        st.divider()
-
-        # NİHAİ MODEL CEVABI
-        st.subheader("🎯 NİHAİ MODEL CEVABI (TrustLLM Output)")
-        best_idx = int(np.argmax(extracted_logits))
-        final_answer_word = extracted_words[best_idx]
-        final_full_sentence = full_texts[best_idx]
-
-        res_col1, res_col2 = st.columns(2)
-        with res_col1:
+        st.subheader("➡️ 3. AŞAMA: Testlerden Geçen Model İle Nihai Çıktı")
+        
+        c_res1, c_res2 = st.columns(2)
+        with c_res1:
             st.markdown(
                 f"""
                 <div style="background-color:#1e293b; padding:20px; border-radius:10px; border-left: 6px solid #10b981;">
-                    <h4 style="margin:0; color:#cbd5e1;">🎯 Kalibre Edilmiş Nihai Cevap (Valid Noun Entity):</h4>
-                    <h1 style="margin:10px 0 0 0; color:#10b981; font-size:38px;">"{final_answer_word}"</h1>
+                    <h4 style="margin:0; color:#cbd5e1;">🎯 3. Aşama Doğrulanmış Nihai Cevap:</h4>
+                    <h1 style="margin:10px 0 0 0; color:#10b981; font-size:38px;">"{winner['best_word']}"</h1>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
-        with res_col2:
+        with c_res2:
             st.markdown(
                 f"""
                 <div style="background-color:#1e293b; padding:20px; border-radius:10px; border-left: 6px solid #3b82f6;">
-                    <h4 style="margin:0; color:#cbd5e1;">📝 Üretilen Cümle ({selected_model_type.split()[0]}):</h4>
-                    <p style="margin:10px 0 0 0; color:#f8fafc; font-size:18px;"><em>"{final_full_sentence}"</em></p>
+                    <h4 style="margin:0; color:#cbd5e1;">📝 Aktarılan Model ({winner['display_name']}):</h4>
+                    <p style="margin:10px 0 0 0; color:#f8fafc; font-size:18px;"><em>"{winner['full_texts'][0]}"</em></p>
                 </div>
                 """,
                 unsafe_allow_html=True,
