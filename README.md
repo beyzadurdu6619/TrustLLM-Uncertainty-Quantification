@@ -158,7 +158,6 @@ FastAPI Mikroservis Katmanı: Arayüzün arkasına REST API uç noktası (/v1/pr
 Büyük Ölçekli Benchmark: TriviaQA ve MMLU gibi 1000+ soruluk akademik veri setleriyle otomasyonun genişletilmesi.
 
 📂 Architecture & Directory Tree
-Plaintext
 TrustLLM-Uncertainty-Quantification/
 │
 ├── notebooks/                     # Experimental validation notebooks & figures
@@ -176,8 +175,10 @@ TrustLLM-Uncertainty-Quantification/
 ├── evaluate_benchmark_50.py       # 50-Question Benchmark Evaluation & LaTeX Generator
 ├── requirements.txt               # Dependencies
 └── README.md                      # Multilingual Academic Documentation
+
+
 🛠️ Installation & Execution / Kurulum
-PowerShell
+
 # 1. Sanal Ortamı Aktifleştirin
 .\.venv\Scripts\Activate.ps1
 
