@@ -46,7 +46,7 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("🛡️ TrustLLM: Adım Adım Canlı Güncellenen Belirsizlik Paneli")
+st.title("🛡️ TrustLLM: Adım Adım Canlı Güncellenen Belirsizlik Paneli Akademik")
 st.caption(
     "1. Adım (SpaCy POS Parsing) $\rightarrow$ 2. Adım (Dual-Model ECE Benchmark) $\rightarrow$ 3. Adım (Nihai Aktarım)"
 )
