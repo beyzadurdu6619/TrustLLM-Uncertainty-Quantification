@@ -112,6 +112,34 @@ $$\text{IsSubjective} = (\text{HasSuperlativeOrOpinionPattern}) \lor (H(S) \ge \
 | ![Objective Test](objective_test_capital.png) | ![Subjective Test](subjective_test_movie.png) |
 | *Entropi 0.0000 & Yapısal Öznel Öge Yok → **OBJECTIVE FACT-BASED (PASSED)**.* | *Entropi 0.0000 fakat `best` sıfatı tespit edildi → **SUBJECTIVE / AMBIGUOUS (REFUSED)**.* |
 
+### 🌐 Out-of-Domain Real-World Benchmark: SUBJ Dataset ($N=1,000$)
+
+TrustLLM mimarisinin sentetik şablonların ötesindeki gerçek dünya genelleştirme yeteneğini (generalizability) ölçmek amacıyla, NLP literatüründe standart kabul edilen **Pang & Lee SUBJ Dataset** (Rotten Tomatoes reviews vs. IMDb summaries) üzerinde açık kaynak doğrulama gerçekleştirilmiştir:
+
+| Metrik (Evaluation Metric) | Değer (Value) | Akademik Değerlendirme (Academic Rationale) |
+| :--- | :---: | :--- |
+| **Dataset Source** | **SetFit/subj** | 500 Subjective (Reviews) vs. 500 Objective (Plot Summaries) |
+| **General Accuracy** | **%83.20** | Gerçek dünya gürültülü metinlerinde yüksek sınıflandırma kararlılığı. |
+| **Recall (Sensitivity)** | **%91.40** | Öznel/muğlak içeriklerin %91.40'ı emniyet filtresiyle başarıyla yakalandı. |
+| **Precision** | **%78.52** | Yanlış reddetme (False Refusal) ile emniyet arasındaki dengeli hassasiyet. |
+| **F1-Score** | **%84.47** | Dengeli akademik başarım skoru. |
+
+
+\begin{table}[h]
+\centering
+\caption{Real-World Out-of-Domain Benchmark Performance on SUBJ Dataset (N=1,000)}
+\label{tab:subj_dataset_performance}
+\begin{tabular}{lcccc}
+\hline
+\textbf{Evaluation Metric} & \textbf{Value (\%)} & \textbf{True Positive (TP)} & \textbf{True Negative (TN)} \\ \hline
+General Accuracy & 83.20\% & 457 / 500 & 375 / 500 \\
+Precision & 78.52\% & - & - \\
+Recall & 91.40\% & - & - \\
+F1-Score & 84.47\% & - & - \\
+\hline
+\end{tabular}
+\end{table}
+
 <<<<<<< HEAD
 =======
 ### 🚀 Industrial Large-Scale Subjectivity Benchmark ($N=100,000$ Prompts)
