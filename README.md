@@ -107,42 +107,6 @@ $$\text{IsSubjective} = (\text{HasSuperlativeOrOpinionPattern}) \lor (H(S) \ge \
 | ![Objective Test](objective_test_capital.png) | ![Subjective Test](subjective_test_movie.png) |
 | *Entropi $0.0000$ & Yapısal Öznel Öge Yok $\rightarrow$ **OBJECTIVE FACT-BASED (PASSED)**.* | *Entropi $0.0000$ fakat `best` sıfatı tespit edildi $\rightarrow$ **SUBJECTIVE / AMBIGUOUS (REFUSED)**.* |
 
-### 🚀 Industrial-Scale Performance & Latency Benchmark ($N=100,000$ Prompts)
-
-TrustLLM mimarisinin öznellik ön-filtreleme (Dual-Signal Pre-Filter) katmanı, endüstriyel ölçekte kararlılığını (scalability) ve gecikme süresini (latency) doğrulamak amacıyla 50.000 nesnel ve 50.000 öznel sorgudan oluşan **$N=100,000$ soruluk devasa bir sentetik/sentaktik benchmark veri kümesinde** test edilmiştir.
-
-#### 📊 100K Test Performans ve Metrik Raporu
-
-| Metrik Kriteri (Evaluation Metric) | Değer (Value) | Açıklama / Akademik Detay |
-| :--- | :---: | :--- |
-| **Total Processed Dataset Size** | **100,000** | 50,000 Fact-Based (Objective) vs. 50,000 Opinion-Based (Subjective) |
-| **General Accuracy** | **%100.00** | 100.000 sorunun tamamında sıfır hata ile sınıflandırma. |
-| **True Positives (TP)** | **50,000 / 50,000** | Öznel soruların tamamı başarıyla maskelendi. |
-| **True Negatives (TN)** | **50,000 / 50,000** | Nesnel soruların tamamı emniyetle onaylandı. |
-| **False Positives (FP)** | **0** | Sıfır Hatalı Reddetme (Zero False Refusal). |
-| **False Negatives (FN)** | **0** | Sıfır Güvenlik Sızıntısı (Zero Safety Leakage). |
-| **System Throughput** | **121.3 q/s** | CPU ortamında saniyede 121.3 soru işleme kapasitesi. |
-| **Average Latency per Query** | **8.242 ms** | Soru başına ultra-düşük gecikme süresi. |
-| **Total Execution Time** | **824.21 sec** | ~13.7 dakikada 100.000 sorunun tamamı işlendi. |
-
-#### 📄 LaTeX Benchmark Tablo Kodu (Tez ve Makaleler İçin)
-
-```latex
-\begin{table}[h]
-\centering
-\caption{Industrial Large-Scale Latency and Accuracy Benchmark of TrustLLM Framework (N=100,000 Prompts)}
-\label{tab:trustllm_industrial_100k}
-\begin{tabular}{lcccc}
-\hline
-\textbf{Metric} & \textbf{Value} & \textbf{Metric} & \textbf{Value} \\ \hline
-Dataset Size ($N$) & 100,000 & System Throughput & 121.3 queries/sec \\
-General Accuracy & 100.00\% & Avg. Latency / Query & 8.242 ms \\
-Precision & 100.00\% & Total Execution Time & 824.21 sec \\
-Recall & 100.00\% & False Positive Rate & 0.00\% \\
-F1-Score & 100.00\% & False Negative Rate & 0.00\% \\
-\hline
-\end{tabular}
-\end{table}
 ---
 
 ## 🔬 Theoretical Background & Methodology
@@ -216,6 +180,43 @@ Sistemin başarısını ölçmek amacıyla 10 soruluk ön test ($N=10$) ve 50 so
 0.65 & 14.0\% & 62.8\% \\
 0.75 & 64.0\% & 50.0\% \\
 0.85 & 74.0\% & 61.5\% \\
+\hline
+\end{tabular}
+\end{table}
+```
+### 🚀 Industrial-Scale Performance & Latency Benchmark ($N=100,000$ Prompts)
+
+TrustLLM mimarisinin öznellik ön-filtreleme (Dual-Signal Pre-Filter) katmanı, endüstriyel ölçekte kararlılığını (scalability) ve gecikme süresini (latency) doğrulamak amacıyla 50.000 nesnel ve 50.000 öznel sorgudan oluşan **$N=100,000$ soruluk devasa bir sentetik/sentaktik benchmark veri kümesinde** test edilmiştir.
+
+#### 📊 100K Test Performans ve Metrik Raporu
+
+| Metrik Kriteri (Evaluation Metric) | Değer (Value) | Açıklama / Akademik Detay |
+| :--- | :---: | :--- |
+| **Total Processed Dataset Size** | **100,000** | 50,000 Fact-Based (Objective) vs. 50,000 Opinion-Based (Subjective) |
+| **General Accuracy** | **%100.00** | 100.000 sorunun tamamında sıfır hata ile sınıflandırma. |
+| **True Positives (TP)** | **50,000 / 50,000** | Öznel soruların tamamı başarıyla maskelendi. |
+| **True Negatives (TN)** | **50,000 / 50,000** | Nesnel soruların tamamı emniyetle onaylandı. |
+| **False Positives (FP)** | **0** | Sıfır Hatalı Reddetme (Zero False Refusal). |
+| **False Negatives (FN)** | **0** | Sıfır Güvenlik Sızıntısı (Zero Safety Leakage). |
+| **System Throughput** | **121.3 q/s** | CPU ortamında saniyede 121.3 soru işleme kapasitesi. |
+| **Average Latency per Query** | **8.242 ms** | Soru başına ultra-düşük gecikme süresi. |
+| **Total Execution Time** | **824.21 sec** | ~13.7 dakikada 100.000 sorunun tamamı işlendi. |
+
+#### 📄 LaTeX Benchmark Tablo Kodu (Tez ve Makaleler İçin)
+
+```latex
+\begin{table}[h]
+\centering
+\caption{Industrial Large-Scale Latency and Accuracy Benchmark of TrustLLM Framework (N=100,000 Prompts)}
+\label{tab:trustllm_industrial_100k}
+\begin{tabular}{lcccc}
+\hline
+\textbf{Metric} & \textbf{Value} & \textbf{Metric} & \textbf{Value} \\ \hline
+Dataset Size ($N$) & 100,000 & System Throughput & 121.3 queries/sec \\
+General Accuracy & 100.00\% & Avg. Latency / Query & 8.242 ms \\
+Precision & 100.00\% & Total Execution Time & 824.21 sec \\
+Recall & 100.00\% & False Positive Rate & 0.00\% \\
+F1-Score & 100.00\% & False Negative Rate & 0.00\% \\
 \hline
 \end{tabular}
 \end{table}
