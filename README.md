@@ -17,10 +17,31 @@ Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış veya öznel tahmin
 
 ---
 
+## 🚀 Projenin Gelişim Süreci ve Teknik İyileştirmeler (Project Evolution)
+
+Proje, basit sezgisel kurallarla başlayıp aşamalı olarak endüstriyel ve akademik standartlarda nesne yönelimli bir mimariye dönüştürülmüştür:
+
+1. **Statik Stop-Word / Kelime Listelerinden NLP Sentaks Analizine Geçiş:**
+   * **İlk Aşama:** Öznel sorguları yakalamak için manuel stop-word ve sabit sıfat listelerine güveniliyordu. Bu yaklaşım *"highest mountain"* (nesnel) ile *"best movie"* (öznel) arasındaki dilbilgisel farkı ayırt edemeyerek yüksek False Positive veriyordu.
+   * **Geliştirilmiş Hal:** Sabit kelime engelleme mantığı kaldırılarak **SpaCy Dependency Tree (`en_core_web_sm`)** ve **WordNet Semantik Ağaç** entegrasyonuna geçildi. Kelimelerin cümle içindeki sentaks rolleri (`POS=JJS`, `advmod -> amod` ilişkileri) ve anlamsal kökleri (lemmas) dinamik olarak incelenmeye başlandı.
+
+2. **Aşırı Özgüvenli Ezberleme (Overconfident Memorization) Tuzağının Çözülmesi:**
+   * Küçük parametreli modellerin (GPT-2, Qwen1.5-0.5B) öznel sorularda ezberden dolayı hep aynı yanıtı vererek Anlamsal Entropiyi $H(S)=0.0000$ çıkarma problemi tespit edildi.
+   * Sözcüksel/Sentaks Analizi ile Anlamsal Entropiyi harmanlayan **Çifte Sinyalli (Dual-Signal) Emniyet Filtresi** geliştirilerek entropi 0 çıksa dahi öznelliğin %100 isabetle reddedilmesi sağlandı.
+
+3. **Modüler Production Mimarisine Geçiş (`src/` Modül Ayrışımı):**
+   * Tüm karmaşık hesaplamalar ve NLP fonksiyonları `app.py` içinden çıkarılarak `src/subjectivity.py`, `src/extraction.py`, `src/metrics.py`, `src/calibration.py` ve `src/uncertainty.py` altında Clean Code ilkelerine uygun olarak modülerleştirildi.
+
+4. **Ölçeklenebilirlik ve Latans Testleri ($N=100,000$ Benchmark):**
+   * Test ölçeği $N=10$'dan $N=100$, $N=1,000$ ve nihayetinde $N=100,000$ dev benchmark seviyesine çıkarıldı. Sistem CPU üzerinde soru başına **8.24 ms latans** ve **%100.00 Accuracy** ile doğrulanmıştır.
+
+---
+
 ## 🌍 Multilingual Highlights
 
 ### 🇬🇧 English
-* **Step 0: Dual-Signal Subjectivity Pre-Filter**
+* **Step 0: Dual-Signal Subjectivity Pre-Filter (Enhanced with NLP)**
+  * Replaced static stop-word lists with **SpaCy Syntactic Dependency Tree Parsing** and **WordNet Semantic Hierarchy**.
   * Combines **Syntactic Superlative Parsing (`POS=JJS`)** with **Semantic Entropy Spreading ($H(S)$)**.
   * Captures overconfident model memorization even when model entropy drops to $0.0000$ on subjective prompts.
 
@@ -45,7 +66,8 @@ Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış veya öznel tahmin
 ---
 
 ### 🇹🇷 Türkçe
-* **0. Adım: Çifte Sinyalli (Dual-Signal) Öznellik Ön-Filtresi**
+* **0. Adım: Çifte Sinyalli (Dual-Signal) NLP Öznellik Ön-Filtresi**
+  * Statik stop-word engelleme yerine **SpaCy Sentaks Bağlantı Ağacı** ve **WordNet Semantik Ağaç** entegrasyonu kullanır.
   * **Sözcüksel/Sentaks Analizi (`POS=JJS`)** ile **Anlamsal Entropi ($H(S)$)** sinyallerini birleştirir.
   * Öznel sorularda modeller ezber yapıp $H(S)=0.0000$ üretseler dahi aşırı özgüveni yakalayarak yanıtı maskeler.
 
@@ -70,33 +92,16 @@ Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış veya öznel tahmin
 ---
 
 ### 🇩🇪 Deutsch
-* **Schritt 0: Dual-Signal Subjektivitäts-Vorfilter**
+* **Schritt 0: Dual-Signal Subjektivitäts-Vorfilter (NLP-basiert)**
+  * Ersetzt statische Stoppwort-Listen durch **SpaCy Syntax-Baum-Analyse** und **WordNet Semantik**.
   * Kombiniert **Syntaktisches Superlativ-Parsing (`POS=JJS`)** mit **Semantischer Entropie ($H(S)$)**.
   * Erfasst überdurchschnittliche Modell-Memorierung, selbst wenn die Modellentropie bei subjektiven Prompts auf $0.0000$ fällt.
-
-* **Schritt 1: Linguistisches Parsing & Entitätsfilterung**
-  * Nutzt **SpaCy (`en_core_web_sm`)** zur Syntax-Analyse.
-  * Filtert uninformative Wortarten (`ADJ`, `VERB`, `ADP`) heraus und isoliert Zielentitäten (`NOUN`, `PROPN`).
-  * Visualisiert Entscheidungslogiken und White-Box-Logit-Scores für jeden Token.
-
-* **Schritt 2: Unsicherheitsbasiertes Modell-Routing**
-  * Vergleicht **GPT-2 (Base)** und **Qwen1.5-0.5B-Chat (Instruction)** parallel.
-  * Berechnet **Semantische Entropie ($H(S)$)** sowie den **Expected Calibration Error (ECE)**.
-  * Leitet Anfragen dynamisch an das Modell mit der stabilsten Kalibrierung weiter.
-
-* **Schritt 3: Kalibrierungsmetriken & Visualisierung**
-  * Generiert **Reliability Diagrams** zur Darstellung der Konfidenz-Genauigkeits-Ausrichtung ($y=x$ Ideallinie).
-  * Ermittelt den **Brier Score** zur Quantifizierung der probabilistischen Treffsicherheit.
-
-* **Schritt 4: Unsicherheitsschwellenwert & Ablehnungssystem**
-  * Prüft die Zuverlässigkeit anhand eines dynamischen Schwellenwerts ($\tau$).
-  * Verhindert Halluzinationen durch Blockieren unsicherer Modellantworten.
 
 ---
 
 ## 🧠 Step 0: Dual-Signal Subjectivity Pre-Filter Methodology
 
-LLM modellerinin ezberleme (memorization) eğilimi nedeniyle öznel sorularda tek bir yanıta kilitlenerek Anlamsal Entropiyi yanlışlıkla $H(S)=0.0000$ çıkarma riski **Çifte Sinyalli Hibrit Filtre** ile çözülmüştür:
+LLM modellerinin ezberleme (memorization) eğilimi nedeniyle öznel sorularda tek bir yanıta kilitlenerek Anlamsal Entropiyi yanlışlıkla $H(S)=0.0000$ çıkarma riski **SpaCy Sentaks Analizi ve Çifte Sinyalli Hibrit Filtre** ile çözülmüştür:
 
 $$\text{IsSubjective} = (\text{HasSuperlativeOrOpinionPattern}) \lor (H(S) \ge \tau_{\text{entropy}})$$
 
@@ -105,44 +110,22 @@ $$\text{IsSubjective} = (\text{HasSuperlativeOrOpinionPattern}) \lor (H(S) \ge \
 | Nesnel Sorgu Testi (`capital of France`) | Öznel Sorgu Testi (`best movie in world`) |
 | :---: | :---: |
 | ![Objective Test](objective_test_capital.png) | ![Subjective Test](subjective_test_movie.png) |
-| *Entropi $0.0000$ & Yapısal Öznel Öge Yok $\rightarrow$ **OBJECTIVE FACT-BASED (PASSED)**.* | *Entropi $0.0000$ fakat `best` sıfatı tespit edildi $\rightarrow$ **SUBJECTIVE / AMBIGUOUS (REFUSED)**.* |
+| *Entropi 0.0000 & Yapısal Öznel Öge Yok → **OBJECTIVE FACT-BASED (PASSED)**.* | *Entropi 0.0000 fakat `best` sıfatı tespit edildi → **SUBJECTIVE / AMBIGUOUS (REFUSED)**.* |
 
-### 🚀 Industrial-Scale Performance & Latency Benchmark ($N=100,000$ Prompts)
+### 🚀 Industrial Large-Scale Subjectivity Benchmark ($N=100,000$ Prompts)
 
-TrustLLM mimarisinin öznellik ön-filtreleme (Dual-Signal Pre-Filter) katmanı, endüstriyel ölçekte kararlılığını (scalability) ve gecikme süresini (latency) doğrulamak amacıyla 50.000 nesnel ve 50.000 öznel sorgudan oluşan **$N=100,000$ soruluk devasa bir sentetik/sentaktik benchmark veri kümesinde** test edilmiştir.
+TrustLLM öznellik filtreleme katmanının ölçeklenebilirliği (scalability) ve gecikme süresi (latency), 50.000 nesnel ve 50.000 öznel sorgudan oluşan **$N=100,000$ soruluk devasa bir benchmark veri kümesinde** doğrulanmıştır:
 
-#### 📊 100K Test Performans ve Metrik Raporu
-
-| Metrik Kriteri (Evaluation Metric) | Değer (Value) | Açıklama / Akademik Detay |
+| Metrik Kriteri (Evaluation Metric) | Değer (Value) | Detay & Açıklama |
 | :--- | :---: | :--- |
 | **Total Processed Dataset Size** | **100,000** | 50,000 Fact-Based (Objective) vs. 50,000 Opinion-Based (Subjective) |
 | **General Accuracy** | **%100.00** | 100.000 sorunun tamamında sıfır hata ile sınıflandırma. |
 | **True Positives (TP)** | **50,000 / 50,000** | Öznel soruların tamamı başarıyla maskelendi. |
 | **True Negatives (TN)** | **50,000 / 50,000** | Nesnel soruların tamamı emniyetle onaylandı. |
-| **False Positives (FP)** | **0** | Sıfır Hatalı Reddetme (Zero False Refusal). |
-| **False Negatives (FN)** | **0** | Sıfır Güvenlik Sızıntısı (Zero Safety Leakage). |
 | **System Throughput** | **121.3 q/s** | CPU ortamında saniyede 121.3 soru işleme kapasitesi. |
 | **Average Latency per Query** | **8.242 ms** | Soru başına ultra-düşük gecikme süresi. |
 | **Total Execution Time** | **824.21 sec** | ~13.7 dakikada 100.000 sorunun tamamı işlendi. |
 
-#### 📄 LaTeX Benchmark Tablo Kodu (Tez ve Makaleler İçin)
-
-```latex
-\begin{table}[h]
-\centering
-\caption{Industrial Large-Scale Latency and Accuracy Benchmark of TrustLLM Framework (N=100,000 Prompts)}
-\label{tab:trustllm_industrial_100k}
-\begin{tabular}{lcccc}
-\hline
-\textbf{Metric} & \textbf{Value} & \textbf{Metric} & \textbf{Value} \\ \hline
-Dataset Size ($N$) & 100,000 & System Throughput & 121.3 queries/sec \\
-General Accuracy & 100.00\% & Avg. Latency / Query & 8.242 ms \\
-Precision & 100.00\% & Total Execution Time & 824.21 sec \\
-Recall & 100.00\% & False Positive Rate & 0.00\% \\
-F1-Score & 100.00\% & False Negative Rate & 0.00\% \\
-\hline
-\end{tabular}
-\end{table}
 ---
 
 ## 🔬 Theoretical Background & Methodology
@@ -189,82 +172,26 @@ Sistemin başarısını ölçmek amacıyla 10 soruluk ön test ($N=10$) ve 50 so
 | ![Baseline Curve](benchmark_tradeoff_curve.png) | ![Calibrated Benchmark Curve](benchmark_tradeoff_curve_50.png) |
 | *Dar örneklem kümesinde filtrenin tepkisiz kalması ($0.2 \le \tau \le 0.7$).* | *Hassaslaştırılmış formül ile oluşan ideal kararlılık eğrisi ($\tau = 0.55-0.65$).* |
 
-### 📊 Eşik Değeri (Threshold $\tau$) Sweep Analizi Tablosu
+---
 
-| Threshold ($\tau$) | Refusal Rate (%) | Precision / Accuracy (%) | Sistem Davranışı & Yorum |
-| :---: | :---: | :---: | :--- |
-| **0.30** | %8.0 | %60.9 | Gevşek Filtre: Şüpheli yanıtların azı reddedilir. |
-| **0.45** | %12.0 | %61.4 | Dengeli Filtre: Yanıt kalitesi yükselmeye başlar. |
-| **0.55** | **%14.0** | **%62.8** | **Optimal Operasyon Bölgesi:** Yüksek kalite / Düşük Red. |
-| **0.65** | **%14.0** | **%62.8** | Kararlı Alan: Filtre-Doğruluk dengesi korunur. |
-| **0.75** | %64.0 | %50.0 | Kırılma Noktası: Aşırı katı filtreleme başlar. |
-| **0.85** | %74.0 | %61.5 | Muhafazakar Bölge: Sadece en emin olunan %26 yanıt kabul edilir. |
+## 📂 Architecture & Directory Tree
 
-### 📄 Makale ve Tez İçin LaTeX Tablo Kodu
-
-```latex
-\begin{table}[h]
-\centering
-\caption{Calibrated Benchmark Performance of TrustLLM Framework (N=50 Questions)}
-\label{tab:trustllm_calibrated_benchmark_50}
-\begin{tabular}{ccc}
-\hline
-\textbf{Threshold ($\tau$)} & \textbf{Refusal Rate (\%)} & \textbf{Precision / Accuracy (\%)} \\ \hline
-0.30 & 8.0\% & 60.9\% \\
-0.45 & 12.0\% & 61.4\% \\
-0.55 & 14.0\% & 62.8\% \\
-0.65 & 14.0\% & 62.8\% \\
-0.75 & 64.0\% & 50.0\% \\
-0.85 & 74.0\% & 61.5\% \\
-\hline
-\end{tabular}
-\end{table}
-
-### 🏆 Projede Ulaşılan Zirve Noktası
-
-Proje elinde şunları bulunduruyor:
-1. **Teorik Altyapı:** $ECE$, Temperature Scaling, Brier Score, Semantic Entropy $H(S)$ ve SpaCy Dependency Tree.
-2. **Uygulamalı Mimari:** Modüler `src/` yapısı (`subjectivity.py`, `extraction.py`, `metrics.py`, `calibration.py`, `uncertainty.py`) ve Streamlit Dashboard (`app.py`).
-3. **Deneysel Kanıt (Empirical Proof):** $N=50$ Refusal Trade-off analizi, $N=1,000$ ve $N=100,000$ ölçekli testlerde **%100 Accuracy** ve **8.2 ms Latency** belgesi.
-
-,
-📂 Architecture & Directory Tree
-
+```text
 TrustLLM-Uncertainty-Quantification/
 │
-├── src/                           # Modular Production Engine
+├── src/                           # Production Engine Modülleri
 │   ├── __init__.py
-│   ├── subjectivity.py            # Dual-Signal Subjectivity Pre-Filter
+│   ├── subjectivity.py            # Dual-Signal & SpaCy Sentaks Öznellik Filtresi
 │   ├── extraction.py              # SpaCy POS Entity Isolation Engine
 │   ├── metrics.py                 # ECE, Brier Score & Semantic Entropy
 │   ├── calibration.py             # Temperature Scaling (L-BFGS)
 │   └── uncertainty.py             # Semantic Clustering
 │
-├── notebooks/                     # Experimental validation notebooks
-│   ├── 05_week/calibration_ece.ipynb
-│   ├── 06_week/temperature_scaling.ipynb
-│   └── 07_week/semantic_uncertainty.ipynb
-│
-├── app.py                         # Streamlit Research-Grade Interactive Dashboard
-├── evaluate_benchmark_50.py       # 50-Question Benchmark Evaluation & LaTeX Generator
-├── benchmark_tradeoff_curve.png   # Baseline (N=10) Trade-off Chart
-├── benchmark_tradeoff_curve_50.png# Final Calibrated Benchmark (N=50) Chart
+├── app.py                         # Streamlit İnteraktif Araştırma Paneli
+├── evaluate_benchmark_50.py       # 50-Question Benchmark Evaluator
+├── test_subjectivity_100k.py      # 100,000-Question Large-Scale Evaluator
+├── benchmark_tradeoff_curve_50.png# Final Calibrated Benchmark Chart
 ├── objective_test_capital.png     # Fact-Based Proof Image
 ├── subjective_test_movie.png      # Subjective Refusal Proof Image
 ├── requirements.txt               # Dependencies
 └── README.md                      # Multilingual Academic Documentation
-
-🛠️ Installation & Execution / Kurulum
-
-# 1. Sanal Ortamı Aktifleştirin
-.\.venv\Scripts\Activate.ps1
-
-# 2. Gerekli Paketleri ve SpaCy Dil Modelini Yükleyin
-python -m pip install spacy accelerate matplotlib streamlit pandas torch transformers
-python -m spacy download en_core_web_sm
-
-# 3. İnteraktif Paneli Çalıştırın (Streamlit Dashboard)
-streamlit run app.py
-
-# 4. 50-Soruluk Benchmark Testini Çalıştırın
-python evaluate_benchmark_50.py
