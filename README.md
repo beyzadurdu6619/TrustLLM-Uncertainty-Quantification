@@ -128,7 +128,7 @@ $$\text{IsSubjective} = (\text{HasSuperlativeOrOpinionPattern}) \lor (H(S) \ge \
 | **Precision** | **%78.52** | Yanlış reddetme (False Refusal) ile emniyet arasındaki dengeli hassasiyet. |
 | **F1-Score** | **%84.47** | Dengeli akademik başarım skoru. |
 
-
+```latex
 \begin{table}[h]
 \centering
 \caption{Real-World Out-of-Domain Benchmark Performance on SUBJ Dataset (N=1,000)}
@@ -143,7 +143,7 @@ F1-Score & 84.47\% & - & - \\
 \hline
 \end{tabular}
 \end{table}
-
+```
 ### 🚀 Industrial Large-Scale Subjectivity Benchmark ($N=100,000$ Prompts)
 
 | Metrik Kriteri (Evaluation Metric) | Değer (Value) | Detay & Açıklama |
