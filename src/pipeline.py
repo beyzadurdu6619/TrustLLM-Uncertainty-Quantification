@@ -1,120 +1,138 @@
-
-import nltk
-nltk.download('stopwords')
-# NLTK Stopwords paketini otomatik indir ve yükle
 import torch
 import torch.nn.functional as F
 import numpy as np
 import re
-import nltk
-from nltk.corpus import stopwords
 from src.metrics import compute_ece
 from src.calibration import TemperatureScaler
 
-try:
-    NLTK_STOPWORDS = set(stopwords.words('english'))
-except LookupError:
-    nltk.download('stopwords', quiet=True)
-    NLTK_STOPWORDS = set(stopwords.words('english'))
-
 def to_english_lower(text: str) -> str:
-    """
-    İngilizce kurallarına sadık kalarak büyük harfleri küçük harfe dönüştürür.
-    'I' harfinin Türkçe yerelde 'ı' olmasına engel olup 'i' olmasını garanti eder.
-    """
     return text.replace("I", "i").lower()
+
+def extract_dynamic_semantic_entity(generated_text: str, prompt_text: str, nlp_model):
+    """
+    Sorgunun kendi kelimelerini (Prompt Echo) cevaptan ayıran 
+    ve örtülü gerçek varlığı (Entity/Movie Name) izole eden NLP Motoru.
+    """
+    if not generated_text.strip():
+        return "Unknown", "NOUN", "Boş çıktı."
+
+    # Soru kelimelerini semantik filtre için küçük harfe çevir
+    prompt_words = set(re.sub(r'[^\w\s]', '', prompt_text.lower()).split())
+    
+    doc = nlp_model(generated_text)
+    
+    # 1. NER Kontrolü (Özel İsim, Film, Mekan vb.)
+    for ent in doc.ents:
+        ent_lower_words = set(ent.text.lower().split())
+        # Eğer tespit edilen varlık sadece soru kelimelerinden oluşmuyorsa GERÇEK CEVAPTIR
+        if not ent_lower_words.issubset(prompt_words):
+            return ent.text.title(), "PROPN", f"Semantik NER Varlık Tespiti [{ent.label_}]"
+
+    # 2. Noun Chunk (İsim Öbeği) Analizi - Soru kelimelerinden arındırılmış
+    for chunk in doc.noun_chunks:
+        chunk_lower_words = set(chunk.text.lower().split())
+        # Soru tekrarı olmayan (echo içermeyen) ilk anlamlı isim öbeği
+        if not chunk_lower_words.issubset(prompt_words):
+            # Çekirdek kelimenin POS tipini al
+            clean_chunk = re.sub(r'[^\w\s]', '', chunk.text).strip().title()
+            if clean_chunk:
+                return clean_chunk, chunk.root.pos_ if chunk.root.pos_ in ["PROPN", "NOUN"] else "PROPN", "Semantik Ad Öbeği İzolasyonu"
+
+    # 3. Bağımlılık Ağacı (Dependency Parsing) Çekirdek Öge Tespiti
+    for token in doc:
+        if token.text.lower() not in prompt_words and token.pos_ in ["PROPN", "NOUN", "ADJ"]:
+            clean_t = re.sub(r'[^\w\s]', '', token.text).strip().title()
+            if clean_t:
+                return clean_t, token.pos_, f"Bağımlılık Ağacı Çekirdeği [{token.dep_}]"
+
+    return generated_text.strip().title(), "NOUN", "Genel Metin Çözümleme"
+
 
 @torch.no_grad()
 def run_pipeline_for_model(model_key, display_name, prompt_text, adaptive_temp, tokenizer, model, nlp):
-    """
-    Harf büyüklüğü (Case sensitivity) çakışmalarını birleştiren (Rome + rome -> rome),
-    İngilizce 'I' -> 'i' kuralına uygun Logit Aggregation destekli çıkarım hattı.
-    """
     messages = [
-        {"role": "system", "content": "You are a factual QA assistant. Provide ONLY the precise entity name or exact answer. Do not add punctuation, articles or extra words."},
+        {"role": "system", "content": "You are a factual QA assistant. Provide ONLY the precise entity name or exact answer. Do not add explanation or introductory phrases."},
         {"role": "user", "content": f"What is the {prompt_text}?"}
     ]
     
     formatted_prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     inputs = tokenizer(formatted_prompt, return_tensors="pt")
 
+    # 1. Tam Cümle Sekansı Üretimi
     outputs = model.generate(
         **inputs,
-        max_new_tokens=4,
+        max_new_tokens=6,
         do_sample=False,
         return_dict_in_generate=True,
         output_scores=True,
     )
 
-    # 1. TENSOR LOGİT VE SOFTMAX OLASILIKLARI
+    new_tokens = outputs.sequences[0][inputs["input_ids"].shape[1] :]
+    full_generated_text = tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+
+    # 2. Dinamik Semantik Varlık Çıkarımı (Prompt Echo Koruması ile)
+    semantic_word, semantic_pos, semantic_rationale = extract_dynamic_semantic_entity(
+        full_generated_text, prompt_text, nlp
+    )
+
+    # 3. Logit ve Olasılık Analizi
     first_step_logits = outputs.scores[0][0]
     scaled_logits = first_step_logits / max(0.1, adaptive_temp)
     probs_tensor = F.softmax(scaled_logits, dim=-1)
 
-    # İlk 30 adayı çekip harf birleştirmesi yapacağız
-    top_k_logits, top_k_indices = torch.topk(first_step_logits, k=30)
-    top_k_probs, _ = torch.topk(probs_tensor, k=30)
+    top_k_logits, top_k_indices = torch.topk(first_step_logits, k=25)
+    top_k_probs, _ = torch.topk(probs_tensor, k=25)
 
-    raw_tokens = [tokenizer.decode([idx.item()]).strip() for idx in top_k_indices]
     raw_logits_list = [float(l.item()) for l in top_k_logits]
     raw_probs_list = [float(p.item()) for p in top_k_probs]
 
-    # 💡 2. HARF BÜYÜKLÜĞÜ BİRLEŞTİRME (CASE AGGREGATION & CASE NORMALIZATION)
-    # "Rome" ve "rome" gibi aynı kelimelerin olasılıklarını topluyoruz
-    aggregated_dict = {} # key: lower_word, val: {"max_logit": float, "sum_prob": float, "original_sample": str}
-
-    for token_str, logit_val, prob_val in zip(raw_tokens, raw_logits_list, raw_probs_list):
-        clean_word = re.sub(r'[^\w\s]', '', token_str).strip()
+    aggregated_dict = {}
+    for idx, logit_val, prob_val in zip(top_k_indices, raw_logits_list, raw_probs_list):
+        raw_token_str = tokenizer.decode([idx.item()])
+        clean_word = re.sub(r'[^\w\s]', '', raw_token_str).strip()
         if not clean_word:
             continue
-            
-        # 🟢 İNGİLİZCE SADIK KÜÇÜK HARF DÖNÜŞÜMÜ ('I' -> 'i')
-        lower_word = to_english_lower(clean_word)
 
+        lower_word = to_english_lower(clean_word)
         if lower_word not in aggregated_dict:
             aggregated_dict[lower_word] = {
                 "max_logit": logit_val,
                 "sum_prob": prob_val,
-                "display_word": clean_word.capitalize() # Görsellik için baş harfi büyük bırakalım
+                "display_word": clean_word.capitalize()
             }
         else:
-            # Aynı kelimenin farklı versiyonu geldiyse olasılıkları birleştir (sum_prob), en yüksek logit'i koru
             aggregated_dict[lower_word]["sum_prob"] += prob_val
             if logit_val > aggregated_dict[lower_word]["max_logit"]:
                 aggregated_dict[lower_word]["max_logit"] = logit_val
 
-    # Olasılığa göre yeniden sırala
     sorted_candidates = sorted(aggregated_dict.values(), key=lambda x: x["sum_prob"], reverse=True)
 
-    filtered_tokens, filtered_poses, filtered_logits, filtered_probs = [], [], [], []
+    # 4. Dilbilgisel Hakemlik (Karar Akışı)
     decision_flow = []
-
-    EXTRA_DOMAIN_STOPWORDS = {"answer", "explanation", "unknown", "cap", "capital", "city", "question"}
+    filtered_tokens, filtered_poses, filtered_logits, filtered_probs = [], [], [], []
 
     for rank, item in enumerate(sorted_candidates):
         word_str = item["display_word"]
-        lower_word = to_english_lower(word_str)
         logit_val = item["max_logit"]
         prob_val = item["sum_prob"]
 
-        # SpaCy POS Analizi
-        doc = nlp(word_str)
-        token_obj = doc[0] if len(doc) > 0 else None
+        doc_token = nlp(word_str)
+        token_obj = doc_token[0] if len(doc_token) > 0 else None
         pos_tag = token_obj.pos_ if token_obj else "PUNCT"
 
-        # ELEME KRİTERLERİ
-        is_nltk_stop = lower_word in NLTK_STOPWORDS or lower_word in EXTRA_DOMAIN_STOPWORDS
-        is_spacy_stop = token_obj.is_stop if token_obj else True
-        is_invalid_pos = pos_tag in ["PUNCT", "SPACE", "SYM", "DET", "PRON", "ADP", "CCONJ", "SCONJ", "AUX", "PART"]
-        is_too_short = len(lower_word) <= 2
+        # 🎯 GENELGEÇER AKADEMİK KRİTERLER:
+        # 1. İşlevsel Gramer Ögeleri (Determiner, Pronoun, Adposition vb.) elenir
+        # 2. Özel isimler (PROPN) ve Varlık isimleri (NOUN) düşük olasılık alsa bile korunur!
+        is_grammatical_filler = pos_tag in ["PUNCT", "SPACE", "SYM", "DET", "PRON", "ADP", "CCONJ", "SCONJ", "AUX", "PART"]
+        
+        # Eğer kelime özel isim veya isimse baraj uygulanmaz, seçilebilir kalır
+        is_valid_entity = pos_tag in ["PROPN", "NOUN"] and prob_val > 0.001
 
-        is_invalid = is_nltk_stop or is_spacy_stop or is_invalid_pos or is_too_short
-
-        if is_invalid:
+        if is_grammatical_filler or not is_valid_entity:
             decision_flow.append({
                 "word": word_str,
                 "pos": pos_tag,
-                "rationale": f"🚫 ELENDİ (Stopword/Sub-Token) | Combined Prob: %{prob_val*100:.2f}"
+                "rationale": f"🚫 ELENDİ (Dilbilgisel İşlev: {pos_tag}) | Prob: %{prob_val*100:.2f}"
             })
         else:
             filtered_tokens.append(word_str)
@@ -124,20 +142,15 @@ def run_pipeline_for_model(model_key, display_name, prompt_text, adaptive_temp, 
             decision_flow.append({
                 "word": word_str,
                 "pos": pos_tag,
-                "rationale": f"✅ SEÇİLEBİLİR | Max Logit: {logit_val:.2f} | Birleştirilmiş Prob: %{prob_val*100:.2f}"
+                "rationale": f"✅ SEÇİLEBİLİR (Semantik Varlık: {pos_tag}) | Max Logit: {logit_val:.2f} | Prob: %{prob_val*100:.2f}"
             })
 
-    # Eleme sonrası nihai seçimi yap
-    if filtered_tokens:
-        best_word = filtered_tokens[0]
-        best_pos = filtered_poses[0]
-        best_prob = filtered_probs[0]
-        second_prob = filtered_probs[1] if len(filtered_probs) > 1 else 0.0
-    else:
-        best_word = sorted_candidates[0]["display_word"] if sorted_candidates else "Unknown"
-        best_pos = "NOUN"
-        best_prob = sorted_candidates[0]["sum_prob"] if sorted_candidates else 0.5
-        second_prob = 0.0
+    # 🎯 SENKRONİZASYON: Semantik Çıkarımı Metriklere Bağlama
+    best_word = semantic_word
+    best_pos = semantic_pos
+
+    best_prob = sorted_candidates[0]["sum_prob"] if sorted_candidates else 0.5
+    second_prob = sorted_candidates[1]["sum_prob"] if len(sorted_candidates) > 1 else 0.0
 
     logit_margin = best_prob - second_prob
     logit_entropy = float(-torch.sum(probs_tensor * torch.log(probs_tensor + 1e-9)).item())
@@ -167,11 +180,15 @@ def run_pipeline_for_model(model_key, display_name, prompt_text, adaptive_temp, 
         0.0, 1.0
     ))
 
+    # Arayüz için seçilen kelime dizisi
+    display_extracted_words = [best_word] + [w for w in filtered_tokens if w.lower() not in best_word.lower()]
+    display_extracted_poses = [best_pos] + filtered_poses[:len(display_extracted_words)-1]
+
     return {
         "display_name": display_name,
-        "full_texts": [f"Selected Word: {best_word} (POS: {best_pos})"],
-        "extracted_words": filtered_tokens[:5] if filtered_tokens else [c["display_word"] for c in sorted_candidates[:5]],
-        "extracted_poses": filtered_poses[:5] if filtered_poses else ["UNK"]*5,
+        "full_texts": [f"Dinamik Semantik Çıkarım: '{best_word}' ({semantic_rationale})"],
+        "extracted_words": display_extracted_words[:5],
+        "extracted_poses": display_extracted_poses[:5],
         "extracted_logits": filtered_logits[:5] if filtered_logits else [c["max_logit"] for c in sorted_candidates[:5]],
         "extracted_probs": filtered_probs[:5] if filtered_probs else [c["sum_prob"] for c in sorted_candidates[:5]],
         "all_decision_flows": [decision_flow[:10]],

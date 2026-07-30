@@ -54,6 +54,38 @@ import spacy
 
 def detect_hybrid_academic_subjectivity(prompt_text, semantic_entropy, nlp_model, threshold=0.75):
     """
+    Dilbilimsel (JJS/Superlative) ve Anlamsal Entropi tabanlı kesin öznellik tespiti.
+    """
+    clean_prompt = prompt_text.lower().strip()
+    doc = nlp_model(clean_prompt)
+    
+    # 1. SpaCy Sentaks Tespiti (JJS = Superlative: best, funniest, most, prettiest)
+    has_superlative_pos = any(token.pos_ == "JJS" or token.tag_ == "JJS" for token in doc)
+    
+    # 2. Göreceli/Öznel Kök Tespiti (funniest -> funny, best -> good, most)
+    has_subjective_suffix = any(token.text.endswith("est") or token.text.endswith("ier") for token in doc if len(token.text) > 4)
+    opinion_words = {"best", "worst", "favorite", "greatest", "funniest", "prettiest", "beautiful", "tastiest", "enjoyable", "good", "bad", "most"}
+    has_opinion_word = any(token.lemma_ in opinion_words or token.text in opinion_words for token in doc)
+    
+    is_syntactically_subjective = has_superlative_pos or has_subjective_suffix or has_opinion_word
+
+    # Nesnel Bilgi Çıparı (Fact Anchors)
+    fact_anchors = ["capital", "president", "height", "population", "author", "year", "currency", "formula", "speed"]
+    has_fact_anchor = any(anchor in clean_prompt for anchor in fact_anchors)
+
+    # Eğet nesnel çıpa YOKSA ve (Sentaks Öznel VEYA Entropi Yüksekse) -> ÖZNELDİR
+    if is_syntactically_subjective and not has_fact_anchor:
+        is_subjective = True
+        rationale = "Sözcüksel/Sentaks Analizi (`POS=JJS` veya Göreceli Sıfat) öznel bir değerlendirme tespit etti."
+    elif semantic_entropy >= threshold and not has_fact_anchor:
+        is_subjective = True
+        rationale = f"Anlamsal Entropi ($H(S) = {semantic_entropy:.4f}$), belirlenen dinamik eşik değerini ($\ge {threshold:.2f}$) aşmıştır."
+    else:
+        is_subjective = False
+        rationale = "Sorgu nesnel bir bilgi yapısı içermektedir."
+
+    return is_subjective, rationale
+    """
     SpaCy POS ve Sentaks ağacı odaklı Öznellik Tespiti.
     Entropi kararsızlığını nesnel sorularda öznellik olarak etiketlemez.
     """

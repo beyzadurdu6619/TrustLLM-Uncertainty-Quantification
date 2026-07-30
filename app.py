@@ -225,3 +225,70 @@ if st.button("🚀 Tüm Pipeline'ı Çalıştır", type="primary"):
                 f"📊 **Güvenilirlik Skoru:** `{winner['reliability_score']:.4f}` $\\ge$ **Dinamik Eşik:** `{adaptive_threshold:.2f}`\n\n"
                 f"**Gerekçe:** {subj_rationale}"
             )
+
+        # app.py dosyasının en altına eklenecek kısım:
+
+st.divider()
+st.subheader("🧪 6. ADIM: OTOMATİK SİSTEM BENCHMARK & LOG GÖRÜNTÜLEYİCİ")
+
+with st.expander("🔍 Tüm Test Kümesini (Benchmark Suite) Çalıştır ve Hataları Logla", expanded=True):
+    if st.button("▶️ 8 Farklı Kategori Testini Başlat", type="primary"):
+        from src.test_benchmarks import BENCHMARK_SUITE
+        from src.diagnostics import evaluate_and_log_case
+
+        st.info("🔄 Model yükleniyor ve test kümesi yürütülenip 'pipeline_errors.log' dosyasına yazılıyor...")
+        
+        # 💡 Modellerin yukarida yuklenip yuklenmedigini kontrol et, yoksa test aninda yukle
+        if 'qwen_tok' not in locals() or 'qwen_mod' not in locals():
+            qwen_tok, qwen_mod = load_llm_model("Qwen/Qwen2.5-0.5B-Instruct")
+
+        results_summary = []
+        progress_bar = st.progress(0)
+
+        for i, test_case in enumerate(BENCHMARK_SUITE):
+            t_res = compute_adaptive_tuning(test_case["prompt"], nlp)
+            a_thresh = t_res["adaptive_threshold"]
+            a_temp = t_res["adaptive_temperature"]
+
+            with torch.inference_mode():
+                w_res = run_pipeline_for_model(
+                    "Qwen/Qwen2.5-0.5B-Instruct",
+                    "Qwen2.5-0.5B",
+                    test_case["prompt"],
+                    a_temp,
+                    qwen_tok,
+                    qwen_mod,
+                    nlp
+                )
+
+            is_sub, sub_rat = detect_hybrid_academic_subjectivity(test_case["prompt"], w_res["semantic_entropy"], nlp, threshold=a_thresh)
+
+            log_res = evaluate_and_log_case(test_case, w_res, is_sub, sub_rat, a_thresh)
+            results_summary.append(log_res)
+            
+            progress_bar.progress((i + 1) / len(BENCHMARK_SUITE))
+
+        st.success("🎉 Tüm testler tamamlandı ve `pipeline_errors.log` dosyasına kaydedildi!")
+        
+        summary_df = pd.DataFrame([
+            {
+                "Durum": r["status"],
+                "Hata Tipi": r["error_type"],
+                "Test Sorgusu": r["prompt"],
+                "Tahmin Edilen": r["predicted"],
+                "Güvenilirlik": r["metrics"]["reliability_score"],
+                "Entropi H(S)": r["metrics"]["semantic_entropy"],
+                "Öznel Mi?": r["subjectivity_check"]["is_subjective"]
+            }
+            for r in results_summary
+        ])
+        
+        st.dataframe(summary_df, use_container_width=True)
+
+with st.expander("📜 'pipeline_errors.log' Hata Günlüğü Dosyasını Oku"):
+    try:
+        with open("pipeline_errors.log", "r", encoding="utf-8") as f:
+            log_lines = f.readlines()
+            st.code("".join(log_lines[-25:]), language="text")
+    except FileNotFoundError:
+        st.write("Henüz bir hata log dosyası oluşmadı. Testleri çalıştırın.")
