@@ -50,7 +50,42 @@ def calculate_dynamic_threshold(doc):
         return 0.75, "Fact-Prioritized (Nihai Yanıt Odaklı)"
     return 0.50, "Balanced (Dengeli Emniyet)"
 
-def detect_hybrid_academic_subjectivity(prompt_text, semantic_entropy, nlp_model, user_threshold=None):
+import spacy
+
+def detect_hybrid_academic_subjectivity(prompt_text, semantic_entropy, nlp_model, threshold=0.75):
+    """
+    SpaCy POS ve Sentaks ağacı odaklı Öznellik Tespiti.
+    Entropi kararsızlığını nesnel sorularda öznellik olarak etiketlemez.
+    """
+    doc = nlp_model(prompt_text.lower())
+    
+    # 1. SpaCy Sentaks/Sözcüksel Öznel Sıfat ve Derece Kontrolü (JJS = Superlative)
+    has_superlative = any(token.pos_ == "JJS" or token.tag_ == "JJS" for token in doc)
+    
+    # Öznel kanaat ve görecelik kelimeleri
+    opinion_words = ["best", "worst", "favorite", "greatest", "prettiest", "beautiful", "tastiest", "enjoyable", "good", "bad"]
+    has_opinion_word = any(token.lemma_ in opinion_words or token.text in opinion_words for token in doc)
+    
+    is_syntactically_subjective = has_superlative or has_opinion_word
+    
+    # 2. Entropi Kontrolü: Yalnızca soru nesnel bir çıpa (fact anchor) içermiyorsa öznelliğe yorulur
+    fact_anchors = ["capital", "president", "height", "population", "author", "year", "currency", "formula", "speed"]
+    has_fact_anchor = any(anchor in prompt_text.lower() for anchor in fact_anchors)
+    
+    # Eğer sorguda nesnel çıpa varsa entropi yüksek olsa bile öznellik TETİKLENMEZ!
+    if has_fact_anchor:
+        is_subjective = False
+        rationale = "Sorgu nesnel bir bilgi yapısı (fact anchor) içeriyor."
+    else:
+        is_subjective = is_syntactically_subjective or (semantic_entropy >= threshold)
+        if is_syntactically_subjective:
+            rationale = "Sözcüksel/Sentaks Analizi (`POS=JJS`) öznel bir sıfat veya göreceli değerlendirme tespit etti."
+        elif semantic_entropy >= threshold:
+            rationale = f"Anlamsal Entropi ($H(S) = {semantic_entropy:.4f}$), belirlenen dinamik eşik değerini ($\ge {threshold:.2f}$) aşmıştır."
+        else:
+            rationale = "Sorgu nesnel yapıda doğrulanmıştır."
+            
+    return is_subjective, rationale
     """
     Dinamik hesaplanan varsayılan eşik ile güncellenen/kullanılan eşik arasındaki 
     değişimi (Örn: '0.75 ➔ 0.60') izleyip raporlayan öznellik analizi.
