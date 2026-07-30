@@ -120,14 +120,14 @@ $$\text{IsSubjective} = (\text{HasSuperlativeOrOpinionPattern}) \lor (H(S) \ge \
 
 ### 🌐 Out-of-Domain Real-World Benchmark: SUBJ Dataset ($N=1,000$)
 
-| Metrik (Evaluation Metric) | Değer (Value) | Akademik Değerlendirme (Academic Rationale) |
-| :--- | :---: | :--- |
-| **Dataset Source** | **SetFit/subj** | 500 Subjective (Reviews) vs. 500 Objective (Plot Summaries) |
-| **General Accuracy** | **%83.20** | Gerçek dünya gürültülü metinlerinde yüksek sınıflandırma kararlılığı. |
-| **Recall (Sensitivity)** | **%91.40** | Öznel/muğlak içeriklerin %91.40'ı emniyet filtresiyle başarıyla yakalandı. |
-| **Precision** | **%78.52** | Yanlış reddetme (False Refusal) ile emniyet arasındaki dengeli hassasiyet. |
-| **F1-Score** | **%84.47** | Dengeli akademik başarım skoru. |
+| Metrik (Evaluation Metric) | Değer (Value) | True Positive (TP) | True Negative (TN) |
+| :--- | :---: | :---: | :---: |
+| **General Accuracy** | **%83.20** | 457 / 500 | 375 / 500 |
+| **Precision** | **%78.52** | - | - |
+| **Recall (Sensitivity)** | **%91.40** | - | - |
+| **F1-Score** | **%84.47** | - | - |
 
+```latex
 \begin{table}[h]
 \centering
 \caption{Real-World Out-of-Domain Benchmark Performance on SUBJ Dataset (N=1,000)}
@@ -142,17 +142,6 @@ F1-Score & 84.47\% & - & - \\
 \hline
 \end{tabular}
 \end{table}
-### 🚀 Industrial Large-Scale Subjectivity Benchmark ($N=100,000$ Prompts)
-
-| Metrik Kriteri (Evaluation Metric) | Değer (Value) | Detay & Açıklama |
-| :--- | :---: | :--- |
-| **Total Processed Dataset Size** | **100,000** | 50,000 Fact-Based (Objective) vs. 50,000 Opinion-Based (Subjective) |
-| **General Accuracy** | **%100.00** | 100.000 sorunun tamamında sıfır hata ile sınıflandırma. |
-| **True Positives (TP)** | **50,000 / 50,000** | Öznel soruların tamamı başarıyla maskelendi. |
-| **True Negatives (TN)** | **50,000 / 50,000** | Nesnel soruların tamamı emniyetle onaylandı. |
-| **System Throughput** | **121.3 q/s** | CPU ortamında saniyede 121.3 soru işleme kapasitesi. |
-| **Average Latency per Query** | **8.242 ms** | Soru başına ultra-düşük gecikme süresi. |
-| **Total Execution Time** | **824.21 sec** | ~13.7 dakikada 100.000 sorunun tamamı işlendi. |
 
 📂 Architecture & Directory Tree
 
@@ -166,7 +155,7 @@ TrustLLM-Uncertainty-Quantification/
 │   ├── calibration.py              # Temperature Scaling (L-BFGS)
 │   ├── uncertainty.py              # Semantic Clustering
 │   ├── tuning.py                   # Dynamic Adaptive Threshold & Temperature Auto-Tuner
-│   ├── pipeline.py                # Dual-Model Inference Pipeline (Qwen2.5 vs TinyLlama)
+│   ├── pipeline.py                 # Dual-Model Inference Pipeline (Qwen2.5 vs TinyLlama)
 │   ├── academic_metrics.py         # Extended Post-Hoc Calibration & Confidence Logic
 │   └── ablation.py                 # Ablation Study Component Impact Analysis
 │
@@ -177,6 +166,7 @@ TrustLLM-Uncertainty-Quantification/
 └── README.md                       # Multilingual Academic Documentation
 
 🛠️ Installation & Execution / Kurulum
+
 # 1. Sanal Ortamı Aktifleştirin
 .\.venv\Scripts\Activate.ps1
 
