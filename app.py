@@ -9,6 +9,7 @@ import spacy
 import streamlit as st
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from src.explanation import generate_refusal_explanation
 
 try:
     from src.ablation import run_ablation_analysis
@@ -198,33 +199,20 @@ if st.button("🚀 Tüm Pipeline'ı Çalıştır", type="primary"):
         st.subheader("🛡️ 5. ADIM: NİHAİ SİSTEM KARARI VE CEVAP")
 
         # 1. Durum: Öznel Sorgu (Subjective Warning + Answer)
+        # app.py içindeki 5. ADIM güncellenmiş hali:
+
+
+
         if is_subj:
-            st.warning(
-                f"⚠️ **ÖZNEL SORGU UYARISI (SUBJECTIVE PROMPT DETECTED)**\n\n"
-                f"🎯 **Modelin Ürettiği Yanıt:** **{winner['best_word'].upper()}**\n\n"
-                f"💬 **Gerekçe:** {subj_rationale}\n\n"
-                f"❗ **Dikkat:** Bu soru göreceli veya kişisel bir değerlendirme içermektedir. "
-                f"Verilen yanıt nesnel bir gerçeklik temsil etmez, modelin tercihini gösterir."
-            )
-            
-        # 2. Durum: Düşük Güvenilirlik / Yüksek Entropi Kararsızlığı
+            exp = generate_refusal_explanation(user_prompt, "SUBJECTIVE", winner['best_word'])
+            st.warning(f"### {exp['title']}\n\n**Açıklama:** {exp['message']}\n\n💡 **Öneri:** {exp['suggestion']}")
+
         elif winner["reliability_score"] < adaptive_threshold:
-            st.warning(
-                f"⚠️ **DÜŞÜK GÜVENİLİRLİK UYARISI (LOW CONFIDENCE WARNING)**\n\n"
-                f"🎯 **Modelin Tahmini Cevabı:** **{winner['best_word'].upper()}**\n\n"
-                f"📉 **Güvenilirlik Skoru:** `{winner['reliability_score']:.4f}` < **Dinamik Eşik:** `{adaptive_threshold:.2f}`\n\n"
-                f"❗ **Dikkat:** Model bu yanıtı üretirken alternatif adaylar arasında kararsız kalmıştır (örneğin seçenekler bölünmüş olabilir). "
-                f"Yanıtın doğrulamasını yapmanız tavsiye edilir."
-            )
-            
-        # 3. Durum: Yüksek Güvenilirlik ve Nesnel Onay
+            exp = generate_refusal_explanation(user_prompt, "LOW_CONFIDENCE", winner['best_word'])
+            st.error(f"### {exp['title']}\n\n**Açıklama:** {exp['message']}\n\n🔍 **Doğrulama Adımları:**\n{exp['suggestion']}")
+
         else:
-            st.success(
-                f"✅ **SİSTEM YANITI ONAYLADI (PASSED)**\n\n"
-                f"🎯 **Nihai Cevap:** **{winner['best_word'].upper()}**\n\n"
-                f"📊 **Güvenilirlik Skoru:** `{winner['reliability_score']:.4f}` $\\ge$ **Dinamik Eşik:** `{adaptive_threshold:.2f}`\n\n"
-                f"**Gerekçe:** {subj_rationale}"
-            )
+            st.success(f"✅ **SİSTEM YANITI ONAYLADI (PASSED)**\n\n🎯 **Cevap:** **{winner['best_word'].upper()}**")
 
         # app.py dosyasının en altına eklenecek kısım:
 
