@@ -18,7 +18,7 @@ try:
     from src.subjectivity import detect_hybrid_academic_subjectivity
     from src.tuning import compute_adaptive_tuning
 except ModuleNotFoundError as e:
-    st.error(f"❌ 'src' modülleri yüklenemedi: {e}")
+    st.error(f"❌ 'src' modülleri yüklenemedin: {e}")
     st.stop()
 
 
