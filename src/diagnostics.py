@@ -4,8 +4,11 @@ import json
 from datetime import datetime
 
 # Log yapılandırması
+import os
+os.makedirs("outputs", exist_ok=True) # outputs klasörü yoksa otomatik oluşturur
+
 logging.basicConfig(
-    filename="pipeline_errors.log",
+    filename="outputs/pipeline_errors.log",
     level=logging.INFO,
     format="%(asctime)s - [%(levelname)s] - %(message)s",
     encoding="utf-8"

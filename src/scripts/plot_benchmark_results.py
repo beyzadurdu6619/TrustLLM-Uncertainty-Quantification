@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-def generate_academic_plots(csv_path="mass_benchmark_10k_results.csv"):
+def generate_academic_plots(csv_path="outputs/reports/mass_benchmark_10k_results.csv"):
     if not os.path.exists(csv_path):
         print(f"❌ '{csv_path}' dosyası bulunamadı. Lütfen önce testi çalıştırın.")
         return
@@ -82,7 +82,8 @@ def generate_academic_plots(csv_path="mass_benchmark_10k_results.csv"):
 
     plt.tight_layout()
     
-    output_filename = "academic_benchmark_charts.png"
+    os.makedirs("outputs/plots", exist_ok=True)
+    output_filename = "outputs/plots/academic_benchmark_charts.png"
     plt.savefig(output_filename, dpi=300, bbox_inches='tight')
     print(f"✅ Yayın Kalitesindeki Grafikler Kaydedildi: '{output_filename}' (300 DPI)")
     plt.show()

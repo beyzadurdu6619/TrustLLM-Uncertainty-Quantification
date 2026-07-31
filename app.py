@@ -287,7 +287,7 @@ with st.expander("🔍 Tüm Test Kümesini (Benchmark Suite) Çalıştır ve Hat
 
 with st.expander("📜 'pipeline_errors.log' Hata Günlüğü Dosyasını Oku"):
     try:
-        with open("pipeline_errors.log", "r", encoding="utf-8") as f:
+        with open("outputs/pipeline_errors.log", "r", encoding="utf-8") as f:
             log_lines = f.readlines()
             st.code("".join(log_lines[-25:]), language="text")
     except FileNotFoundError:

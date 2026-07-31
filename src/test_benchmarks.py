@@ -159,7 +159,8 @@ def main():
 
 # 4. Raporlama ve Dosyaya Kaydetme
     df_results = pd.DataFrame(results)
-    output_csv = "mass_benchmark_10k_results.csv"
+    os.makedirs("outputs/reports", exist_ok=True)
+    output_csv = "outputs/reports/mass_benchmark_10k_results.csv"
     
     # Windows ve Excel uyumlu utf-8-sig kodlaması
     df_results.to_csv(output_csv, index=False, encoding="utf-8-sig")
