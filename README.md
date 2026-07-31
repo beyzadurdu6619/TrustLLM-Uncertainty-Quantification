@@ -1,4 +1,4 @@
-# 🛡️ TrustLLM: Uncertainty Quantification, Calibration & Linguistic Refusal
+# 🛡️ TrustLLM: Uncertainty Quantification, Calibration & Grounded Selective Refusal
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-Framework-orange.svg)](https://pytorch.org/)
@@ -10,9 +10,9 @@
 
 ## 📌 Abstract / Özet / Zusammenfassung
 
-* **🇬🇧 English:** Deep neural networks and Large Language Models (LLMs) often exhibit high confidence in incorrect or subjective predictions, leading to reliability and hallucination risks. **TrustLLM** is an academic-grade framework designed to quantify epistemic and aleatoric uncertainty, perform post-hoc confidence calibration, and mitigate overconfidence via **Dual-Signal Subjectivity Filtering**, **SpaCy-based Part-of-Speech (POS) Parsing**, **Adaptive Auto-Tuning (Threshold & Temperature)**, **Reliability Diagram Visualizations**, and an **Uncertainty-Gated Refusal System**.
-* **🇹🇷 Türkçe:** Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış veya öznel tahminlerde dahi yüksek özgüven (overconfidence) üretme eğilimindedir. **TrustLLM**, bu modellerde belirsizliği nicelleştirmek, post-hoc kalibrasyon uygulamak, **Çifte Sinyalli Öznellik Ön-Filtrelemesi**, **SpaCy tabanlı dilbilgisel (POS) varlık izolasyonu**, **Otomatik Adaptif Eşik/Sıcaklık Ayarlaması**, **Qwen2.5-0.5B-Instruct Ultra-Hızlı Çıkarım Hattı**, **Reliability Diagrams** görselleştirmeleri ve **Belirsizlik Tabanlı Sistem Reddetme (Refusal)** katmanı ile halüsinasyon riskini en aza indirmek amacıyla geliştirilmiş modüler bir sistemdir.
-* **🇩🇪 Deutsch:** Tiefe neuronale Netze und große Sprachmodelle (LLMs) weisen häufig ein hohes Vertrauen bei falschen oder subjektiven Vorhersagen auf, was zu Halluzinationsrisiken führt. **TrustLLM** ist ein akademisches Framework zur Quantifizierung von Unsicherheiten, zur Post-hoc-Konfidenzkalibrierung und zur Vermeidung von Übervertrauen mittels **Dual-Signal-Subjektivitätsfilterung**, **SpaCy-basiertem POS-Parsing**, **adaptiver Abstimmung (Schwellenwert & Temperatur)** und einem **unsicherheitsgesteuerten Verweigerungssystem**.
+* **🇬🇧 English:** Deep neural networks and Large Language Models (LLMs) often exhibit high confidence in incorrect or subjective predictions, leading to reliability and hallucination risks. **TrustLLM** is an academic-grade framework designed to quantify epistemic and aleatoric uncertainty, perform post-hoc confidence calibration, and mitigate overconfidence via **Dual-Signal Subjectivity Filtering**, **SpaCy POS Parsing**, **Adaptive Auto-Tuning**, **Selective Generation with Grounded Refusal Explanations**, and an **Uncertainty-Gated System Refusal Mechanism**.
+* **🇹🇷 Türkçe:** Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış veya öznel tahminlerde dahi yüksek özgüven (overconfidence) üretme eğilimindedir. **TrustLLM**, bu modellerde belirsizliği nicelleştirmek, post-hoc kalibrasyon uygulamak, **Çifte Sinyalli Öznellik Ön-Filtrelemesi**, **SpaCy tabanlı POS varlık izolasyonu**, **Otomatik Adaptif Eşik/Sıcaklık Ayarlaması**, **Gerekçelendirilmiş Selektif Üretim (Selective Generation with Grounded Refusal)** ve **Belirsizlik Tabanlı Sistem Reddetme** katmanı ile halüsinasyon riskini en aza indiren modüler bir sistemdir.
+* **🇩🇪 Deutsch:** Tiefe neuronale Netze und große Sprachmodelle (LLMs) weisen häufig ein hohes Vertrauen bei falschen oder subjektiven Vorhersagen auf. **TrustLLM** ist ein akademisches Framework zur Quantifizierung von Unsicherheiten, zur Post-hoc-Konfidenzkalibrierung und zur Vermeidung von Übervertrauen mittels **Dual-Signal-Subjektivitätsfilterung**, **SpaCy-basiertem POS-Parsing**, **adaptiver Abstimmung** und **begründeter selektiver Verweigerung (Grounded Selective Refusal)**.
 
 ---
 
@@ -28,10 +28,10 @@
 * **🇹🇷 TR:** Öznel sorularda entropinin sıfır çıkma problemi, sözcüksel sentaks analizi ile anlamsal entropiyi birleştiren **Çifte Sinyalli Emniyet Filtresi** ile çözüldü.
 * **🇩🇪 DE:** Das Problem der Null-Entropie ($H(S)=0.0000$) bei subjektiven Anfragen wurde durch einen **Dual-Signal-Sicherheitsfilter** gelöst.
 
-### 3. Adaptive Auto-Tuning / Otomatik Adaptif Ayarlama / Adaptive automatische Abstimmung
-* **🇬🇧 EN:** Automatically optimizes **Temperature ($T \in [0.30, 1.50]$)** and **Threshold ($\tau \in [0.45, 0.75]$)** based on prompt risk.
-* **🇹🇷 TR:** Sıcaklık ($T$) ve Eşik ($\tau$) değerlerini sorgunun risk yapısına göre otomatik ayarlar.
-* **🇩🇪 DE:** Optimiert **Temperatur ($T$)** und **Schwellenwert ($\tau$)** automatisch basierend auf der Komplexität der Anfrage.
+### 3. Grounded Selective Refusal / Gerekçelendirilmiş Selektif Üretim / Begründete Selektive Verweigerung
+* **🇬🇧 EN:** Instead of silent failures or raw error messages, the system classifies refusal causes into `Epistemic_Uncertainty`, `Subjective_Prompt`, or `Ambiguous_Context` and provides actionable verification suggestions.
+* **🇹🇷 TR:** Sistem sadece cevabı reddetmekle kalmaz; reddetme nedenini `Epistemic_Uncertainty` (Model Bilgisizliği), `Subjective_Prompt` (Öznel Sorgu) veya `Ambiguous_Context` (Muğlaklık) olarak sınıflandırarak kullanıcıya otomatik doğrulama adımları sunar.
+* **🇩🇪 DE:** Das System verweigert nicht nur Antworten, sondern klassifiziert die Gründe in `Epistemic_Uncertainty`, `Subjective_Prompt` oder `Ambiguous_Context` und liefert Handlungsempfehlungen.
 
 ---
 
@@ -43,8 +43,8 @@
 | **Step 1** | **Adaptive Tuning & Entity Extraction:** Dynamic $\tau$ and $T$ setup; isolates target entities via SpaCy. | **Adaptif Ayar ve Varlık İzolasyonu:** Dinamik $\tau$ ve $T$ hesabı; hedef varlıkları SpaCy ile izole eder. | **Adaptive Abstimmung & Entitätsextraktion:** Dynamische $\tau$- und $T$-Einstellung; isoliert Zielentitäten via SpaCy. |
 | **Step 2** | **Low-Latency Inference:** Executed on `Qwen2.5-0.5B-Instruct` via PyTorch `inference_mode`. | **Düşük Latanslı Çıkarım:** `Qwen2.5-0.5B-Instruct` üzerinde yüksek hızda çalışır. | **Inferenz mit geringer Latenz:** Ausgeführt auf `Qwen2.5-0.5B-Instruct` im `inference_mode`. |
 | **Step 3** | **Calibration Visualizations:** Generates Reliability Diagrams, ECE, and Brier Score. | **Kalibrasyon Görselleştirme:** Reliability Diagrams, ECE ve Brier Skoru hesaplar. | **Kalibrierungsvisualisierung:** Erstellt Zuverlässigkeitsdiagramme, ECE und Brier-Score. |
-| **Step 4** | **Ablation Studies:** Evaluates Hybrid vs. Single-signal methods with 95% Bootstrap CIs. | **Ablation Analizi:** Hibrit ve tekil yöntemleri %95 Güven Aralığı ile kıyaslar. | **Ablationsstudien:** Evaluiert hybride vs. einzelsignale Methoden mit 95% KI. |
-| **Step 5** | **System Refusal:** Refuses/warns when confidence falls below threshold ($R < \tau$). | **Sistem Reddetme:** Güvenilirlik eşiğin altında kaldığında ($R < \tau$) yanıtı maskeler. | **Systemverweigerung:** Verweigert/warnt, wenn die Konfidenz unter dem Schwellenwert liegt ($R < \tau$). |
+| **Step 4** | **Selective Generation & Explanation:** Triggers grounded explanations (`src/explanation.py`) when $R < \tau$. | **Selektif Üretim ve Açıklama:** $R < \tau$ durumunda otomatik gerekçe ve doğrulama rehberi üretir. | **Selektive Verweigerung & Erklärung:** Erzeugt automatische Erklärungen (`src/explanation.py`), wenn $R < \tau$. |
+| **Step 5** | **Ablation & Risk-Coverage Analysis:** Evaluates Risk-Coverage Tradeoff curves with 95% Bootstrap CIs. | **Ablation ve Risk-Kapsama Analizi:** Risk-Kapsama eğrilerini %95 Güven Aralığı ile kıyaslar. | **Ablations- & Risiko-Abdeckungs-Analyse:** Evaluiert Risiko-Abdeckungs-Kurven mit 95% KI. |
 
 ---
 
@@ -58,6 +58,9 @@
 
 3. **Semantic Entropy:**
    $$H(S) = - \sum_{i} P(w_i) \log P(w_i)$$
+
+4. **Risk-Coverage Curve (Selective Generation Optimization):**
+   $$\text{Risk}(C) = \frac{\sum_{i=1}^{N} \mathbb{I}(\hat{y}_i \neq y_i) \cdot g_i}{\sum_{i=1}^{N} g_i}, \quad \text{where } g_i = \mathbb{I}(R_i \ge \tau)$$
 
 ---
 
@@ -78,7 +81,7 @@
 TrustLLM-Uncertainty-Quantification/
 │
 ├── outputs/                 # 📊 Artifacts / Çıktılar / Ergebnisse
-│   ├── plots/               # Reliability diagrams & charts (.png)
+│   ├── plots/               # Reliability & Risk-Coverage charts (.png)
 │   ├── reports/             # Benchmark results (.csv)
 │   └── pipeline_errors.log  # System diagnostics log
 │
@@ -92,6 +95,7 @@ TrustLLM-Uncertainty-Quantification/
 │   ├── calibration.py       # Temperature scaling
 │   ├── diagnostics.py       # Logger & evaluation engine
 │   ├── evaluator.py         # Performance analytics
+│   ├── explanation.py       # Grounded refusal & explanation generator (Adım 2)
 │   ├── extraction.py        # Entity & logit extraction
 │   ├── metrics.py           # Reliability scoring
 │   ├── pipeline.py          # Inference manager
