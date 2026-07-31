@@ -1,4 +1,4 @@
-# 🛡️ TrustLLM: Uncertainty Quantification, Calibration & Linguistic Routing
+# 🛡️ TrustLLM: Uncertainty Quantification, Calibration & Linguistic Refusal
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-Framework-orange.svg)](https://pytorch.org/)
@@ -6,184 +6,116 @@
 [![Transformers](https://img.shields.io/badge/Transformers-HuggingFace-yellow.svg)](https://huggingface.co/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-[English](#-english) | [Türkçe](#-türkçe) | [Deutsch](#-deutsch)
+---
+
+## 📌 Abstract / Özet / Zusammenfassung
+
+* **🇬🇧 English:** Deep neural networks and Large Language Models (LLMs) often exhibit high confidence in incorrect or subjective predictions, leading to reliability and hallucination risks. **TrustLLM** is an academic-grade framework designed to quantify epistemic and aleatoric uncertainty, perform post-hoc confidence calibration, and mitigate overconfidence via **Dual-Signal Subjectivity Filtering**, **SpaCy-based Part-of-Speech (POS) Parsing**, **Adaptive Auto-Tuning (Threshold & Temperature)**, **Reliability Diagram Visualizations**, and an **Uncertainty-Gated Refusal System**.
+* **🇹🇷 Türkçe:** Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış veya öznel tahminlerde dahi yüksek özgüven (overconfidence) üretme eğilimindedir. **TrustLLM**, bu modellerde belirsizliği nicelleştirmek, post-hoc kalibrasyon uygulamak, **Çifte Sinyalli Öznellik Ön-Filtrelemesi**, **SpaCy tabanlı dilbilgisel (POS) varlık izolasyonu**, **Otomatik Adaptif Eşik/Sıcaklık Ayarlaması**, **Qwen2.5-0.5B-Instruct Ultra-Hızlı Çıkarım Hattı**, **Reliability Diagrams** görselleştirmeleri ve **Belirsizlik Tabanlı Sistem Reddetme (Refusal)** katmanı ile halüsinasyon riskini en aza indirmek amacıyla geliştirilmiş modüler bir sistemdir.
+* **🇩🇪 Deutsch:** Tiefe neuronale Netze und große Sprachmodelle (LLMs) weisen häufig ein hohes Vertrauen bei falschen oder subjektiven Vorhersagen auf, was zu Halluzinationsrisiken führt. **TrustLLM** ist ein akademisches Framework zur Quantifizierung von Unsicherheiten, zur Post-hoc-Konfidenzkalibrierung und zur Vermeidung von Übervertrauen mittels **Dual-Signal-Subjektivitätsfilterung**, **SpaCy-basiertem POS-Parsing**, **adaptiver Abstimmung (Schwellenwert & Temperatur)** und einem **unsicherheitsgesteuerten Verweigerungssystem**.
 
 ---
 
-## 📌 Abstract / Özet
+## 🚀 Evolution & Technical Improvements / Gelişim Süreci / Entwicklungsprozess
 
-Deep neural networks and Large Language Models (LLMs) often exhibit high confidence in incorrect or subjective predictions, leading to reliability and hallucination risks in real-world deployments. **TrustLLM** is an academic-grade evaluation framework designed to quantify epistemic and aleatoric uncertainty, perform post-hoc confidence calibration, and mitigate overconfidence via **Dual-Signal Subjectivity Filtering**, **SpaCy-based Part-of-Speech (POS) Parsing**, **Adaptive Auto-Tuning (Threshold & Temperature)**, **Uncertainty-Guided Dual-Model Routing**, **Reliability Diagram Visualizations**, and an **Uncertainty-Gated System Refusal Mechanism**.
+### 1. Linguistic Syntax Analysis / NLP Sentaks Analizi / Linguistische Syntaxanalyse
+* **🇬🇧 EN:** Replaced static stop-word lists with **SpaCy Dependency Trees (`en_core_web_sm`)** and **WordNet Semantic Trees**. Analyzes syntactic roles (`POS=JJS`, `advmod -> amod`) dynamically.
+* **🇹🇷 TR:** Sabit kelime listeleri kaldırılarak **SpaCy Sentaks Bağlantı Ağacı** ve **WordNet** entegrasyonuna geçildi. Kelimelerin cümle içindeki rolleri (`POS=JJS`, `advmod -> amod`) dinamik olarak incelenmektedir.
+* **🇩🇪 DE:** Statische Stoppwort-Listen wurden durch **SpaCy-Dependenzbäume** und **WordNet** ersetzt, um syntaktische Rollen (`POS=JJS`) dynamisch zu analysieren.
 
-Derin sinir ağları ve Büyük Dil Modelleri (LLM), yanlış veya öznel tahminlerde dahi yüksek özgüven (overconfidence) üretme eğilimindedir. **TrustLLM**, bu modellerde belirsizliği nicelleştirmek, post-hoc kalibrasyon uygulamak, **Çifte Sinyalli (Dual-Signal) Öznellik Ön-Filtrelemesi**, **SpaCy tabanlı dilbilgisel (POS) varlık izolasyonu** yapmak, **Otomatik Adaptif Eşik/Sıcaklık Ayarlaması**, **modern ikili model yönlendirmesi (Qwen2.5-0.5B vs TinyLlama-1.1B)**, **Reliability Diagrams** görselleştirmeleri ve **Belirsizlik Tabanlı Sistem Reddetme (Refusal System)** katmanı ile halüsinasyon riskini en aza indirmek amacıyla geliştirilmiş araştırma seviyesinde modüler bir sistemdir.
+### 2. Overconfident Memorization Solution / Ezberleme Tuzağının Çözümü / Lösung für übermäßiges Vertrauen
+* **🇬🇧 EN:** Solved zero-entropy issues ($H(S)=0.0000$) in subjective queries via a **Dual-Signal Safety Filter** combining syntax parsing with semantic entropy.
+* **🇹🇷 TR:** Öznel sorularda entropinin sıfır çıkma problemi, sözcüksel sentaks analizi ile anlamsal entropiyi birleştiren **Çifte Sinyalli Emniyet Filtresi** ile çözüldü.
+* **🇩🇪 DE:** Das Problem der Null-Entropie ($H(S)=0.0000$) bei subjektiven Anfragen wurde durch einen **Dual-Signal-Sicherheitsfilter** gelöst.
 
----
-
-## 🚀 Projenin Gelişim Süreci ve Teknik İyileştirmeler (Project Evolution)
-
-Proje, basit sezgisel kurallarla başlayıp aşamalı olarak endüstriyel ve akademik standartlarda nesne yönelimli, tam modüler bir mimariye dönüştürülmüştür:
-
-1. **Statik Stop-Word / Kelime Listelerinden NLP Sentaks Analizine Geçiş:**
-   * **İlk Aşama:** Öznel sorguları yakalamak için manuel stop-word ve sabit sıfat listelerine güveniliyordu. Bu yaklaşım *"highest mountain"* (nesnel) ile *"best movie"* (öznel) arasındaki dilbilgisel farkı ayırt edemeyerek yüksek False Positive veriyordu.
-   * **Geliştirilmiş Hal:** Sabit kelime engelleme mantığı kaldırılarak **SpaCy Dependency Tree (`en_core_web_sm`)** ve **WordNet Semantik Ağaç** entegrasyonuna geçildi. Kelimelerin cümle içindeki sentaks rolleri (`POS=JJS`, `advmod -> amod` ilişkileri) ve anlamsal kökleri (lemmas) dinamik olarak incelenmeye başlandı.
-
-2. **Aşırı Özgüvenli Ezberleme (Overconfident Memorization) Tuzağının Çözülmesi:**
-   * Küçük parametreli modellerin öznel sorularda ezberden dolayı hep aynı yanıtı vererek Anlamsal Entropiyi $H(S)=0.0000$ çıkarma problemi tespit edildi.
-   * Sözcüksel/Sentaks Analizi ile Anlamsal Entropiyi harmanlayan **Çifte Sinyalli (Dual-Signal) Emniyet Filtresi** geliştirilerek entropi 0 çıksa dahi öznelliğin %100 isabetle reddedilmesi sağlandı.
-
-3. **Otomatik Adaptif Tuning (Dynamic Threshold & Temperature):**
-   * Kullanıcının manuel parametre seçme zorunluluğu kaldırıldı. Sistem sorgunun dilbilgisel ve nesnel yapısına (`fact anchor`) bakarak:
-     * **Sıcaklık ($T$):** Rastgele kelime uydurmasını engellemek için **`1.50 ➔ 0.30`** seviyesine otomatik düşürür.
-     * **Eşik ($\tau$):** Nesnel gerçeklik sorularının cevabını maskelememek için **`0.55 ➔ 0.75`** seviyesine dinamik olarak esnetir.
-
-4. **Modern Komut Takip Eden Modeller Entegrasyonu (Instruction-Tuned Models):**
-   * Eski ve halüsinasyon riski yüksek GPT-2 Base (124M) çıkarılarak yerine güncel, komut takip kabiliyeti yüksek **`Qwen/Qwen2.5-0.5B-Instruct`** ve **`TinyLlama/TinyLlama-1.1B-Chat-v1.0`** entegre edildi. Few-shot şablonları güçlendirilerek nesnel gerçeklik sapmaları (örneğin "Marseille" halüsinasyonu) sıfırlandı.
-
-5. **Modüler Production Mimarisine Geçiş (`src/` Modül Ayrışımı):**
-   * Tüm karmaşık hesaplamalar `app.py` içinden çıkarılarak `src/subjectivity.py`, `src/extraction.py`, `src/metrics.py`, `src/calibration.py`, `src/uncertainty.py`, `src/tuning.py`, `src/pipeline.py`, `src/academic_metrics.py` ve `src/ablation.py` altında Clean Code ilkelerine uygun olarak modülerleştirildi.
-
-6. **Ölçeklenebilirlik ve Latans Testleri ($N=100,000$ Benchmark):**
-   * Test ölçeği $N=100,000$ dev benchmark seviyesine çıkarıldı. Sistem CPU üzerinde soru başına **8.24 ms latans** ve **%100.00 Accuracy** ile doğrulanmıştır.
+### 3. Adaptive Auto-Tuning / Otomatik Adaptif Ayarlama / Adaptive automatische Abstimmung
+* **🇬🇧 EN:** Automatically optimizes **Temperature ($T \in [0.30, 1.50]$)** and **Threshold ($\tau \in [0.45, 0.75]$)** based on prompt risk.
+* **🇹🇷 TR:** Sıcaklık ($T$) ve Eşik ($\tau$) değerlerini sorgunun risk yapısına göre otomatik ayarlar.
+* **🇩🇪 DE:** Optimiert **Temperatur ($T$)** und **Schwellenwert ($\tau$)** automatisch basierend auf der Komplexität der Anfrage.
 
 ---
 
-## 🌍 Multilingual Highlights
+## 🌍 Multilingual Workflow / 3 Dilde Sistem Adımları
 
-### 🇬🇧 English
-* **Step 0: Dual-Signal Subjectivity Pre-Filter (Enhanced with NLP)**
-  * Replaced static stop-word lists with **SpaCy Syntactic Dependency Tree Parsing** and **WordNet Semantic Hierarchy**.
-  * Combines **Syntactic Superlative Parsing (`POS=JJS`)** with **Semantic Entropy Spreading ($H(S)$)**.
-* **Step 1: Adaptive Auto-Tuning & Linguistic Parsing**
-  * Automatically calculates prompt-dependent dynamic threshold ($\tau$) and temperature ($T$).
-  * Parses syntax dependency trees using **SpaCy (`en_core_web_sm`)**. Filters out non-informative tokens (`ADJ`, `VERB`, `ADP`) to isolate target entities (`NOUN`, `PROPN`).
-* **Step 2: Uncertainty-Guided Dual-Model Routing**
-  * Evaluates **Qwen2.5-0.5B-Instruct** against **TinyLlama-1.1B-Chat** in parallel.
-  * Calculates **Semantic Entropy ($H(S)$)** and **Expected Calibration Error (ECE)**.
-* **Step 3: Calibration Metrics & Visualizations**
-  * Generates **Reliability Diagrams** comparing raw vs. calibrated confidence distributions. Computes the **Brier Score** for probabilistic accuracy.
-* **Step 4: Academic Rigor & Ablation Analysis**
-  * Conducts **Ablation Studies** (Syntax-only vs. Entropy-only vs. Hybrid) and computes non-parametric **95% Bootstrap Confidence Intervals**.
-* **Step 5: Uncertainty Threshold & Refusal System**
-  * Evaluates system reliability against a dynamic confidence threshold ($\tau$). Shields users from hallucinations by withholding responses when uncertainty exceeds safety limits.
+| Step / Adım / Schritt | 🇬🇧 English | 🇹🇷 Türkçe | 🇩🇪 Deutsch |
+| :--- | :--- | :--- | :--- |
+| **Step 0** | **Dual-Signal Filter:** Combines `POS=JJS` syntax parsing with Semantic Entropy $H(S)$. | **Çifte Sinyal Filtresi:** `POS=JJS` sentaks analizi ile Anlamsal Entropiyi birleştirir. | **Dual-Signal-Filter:** Kombiniert `POS=JJS`-Syntax-Parsing mit semantischer Entropie $H(S)$. |
+| **Step 1** | **Adaptive Tuning & Entity Extraction:** Dynamic $\tau$ and $T$ setup; isolates target entities via SpaCy. | **Adaptif Ayar ve Varlık İzolasyonu:** Dinamik $\tau$ ve $T$ hesabı; hedef varlıkları SpaCy ile izole eder. | **Adaptive Abstimmung & Entitätsextraktion:** Dynamische $\tau$- und $T$-Einstellung; isoliert Zielentitäten via SpaCy. |
+| **Step 2** | **Low-Latency Inference:** Executed on `Qwen2.5-0.5B-Instruct` via PyTorch `inference_mode`. | **Düşük Latanslı Çıkarım:** `Qwen2.5-0.5B-Instruct` üzerinde yüksek hızda çalışır. | **Inferenz mit geringer Latenz:** Ausgeführt auf `Qwen2.5-0.5B-Instruct` im `inference_mode`. |
+| **Step 3** | **Calibration Visualizations:** Generates Reliability Diagrams, ECE, and Brier Score. | **Kalibrasyon Görselleştirme:** Reliability Diagrams, ECE ve Brier Skoru hesaplar. | **Kalibrierungsvisualisierung:** Erstellt Zuverlässigkeitsdiagramme, ECE und Brier-Score. |
+| **Step 4** | **Ablation Studies:** Evaluates Hybrid vs. Single-signal methods with 95% Bootstrap CIs. | **Ablation Analizi:** Hibrit ve tekil yöntemleri %95 Güven Aralığı ile kıyaslar. | **Ablationsstudien:** Evaluiert hybride vs. einzelsignale Methoden mit 95% KI. |
+| **Step 5** | **System Refusal:** Refuses/warns when confidence falls below threshold ($R < \tau$). | **Sistem Reddetme:** Güvenilirlik eşiğin altında kaldığında ($R < \tau$) yanıtı maskeler. | **Systemverweigerung:** Verweigert/warnt, wenn die Konfidenz unter dem Schwellenwert liegt ($R < \tau$). |
 
 ---
 
-### 🇹🇷 Türkçe
-* **0. Adım: Çifte Sinyalli (Dual-Signal) NLP Öznellik Ön-Filtresi**
-  * Statik kelime listeleri yerine **SpaCy Sentaks Bağlantı Ağacı** ve **WordNet Semantik Ağaç** entegrasyonu kullanır.
-  * **Sözcüksel/Sentaks Analizi (`POS=JJS`)** ile **Anlamsal Entropi ($H(S)$)** sinyallerini birleştirir.
-* **1. Adım: Otomatik Eşik/Sıcaklık Uyarlaması ve Varlık İzolasyonu**
-  * Sorgunun yapısına göre eşik ($\tau$) ve sıcaklık ($T$) parametrelerini otomatik ayarlar.
-  * Bilgi taşımayan kelime türlerini eleyerek yalnızca hedef varlıkları (`NOUN`, `PROPN`) izole eder.
-* **2. Adım: Belirsizlik Rehberliğinde Çift Model Yönlendirmesi**
-  * **Qwen2.5-0.5B-Instruct** ile **TinyLlama-1.1B-Chat** modellerini eşzamanlı değerlendirir.
-  * Çıkarımları kalibrasyon kararlılığı en yüksek olan modele yönlendirir.
-* **3. Adım: Kalibrasyon Metrikleri ve Görselleştirme**
-  * Ham ve kalibre edilmiş özgüven dağılımlarını karşılaştıran **Reliability Diagrams** çizer. **Brier Skoru** ve **ECE** hesaplar.
-* **4. Adım: Akademik Derinlik, Kalibrasyon ve Ablation Analizi**
-  * Sistem bileşenlerinin etkisini ölçen **Ablation Study** yürütür ve **%95 Bootstrap Güven Aralığı** sunar.
-* **5. Adım: Belirsizlik Eşik Değeri ve Otomatik Reddetme (Refusal)**
-  * Güvenilirlik Skorunu dinamik emniyet eşiği ($\tau$) ile karşılaştırarak belirsizlik aşıldığında yanıtı maskeler ve halüsinasyonu engeller.
-
----
-
-### 🇩🇪 Deutsch
-* **Schritt 0: Dual-Signal Subjektivitäts-Vorfilter (NLP-basiert)**
-  * Ersetzt statische Stoppwort-Listen durch **SpaCy Syntax-Baum-Analyse** und **WordNet Semantik**.
-  * Kombiniert **Syntaktisches Superlativ-Parsing (`POS=JJS`)** mit **Semantischer Entropie ($H(S)$)**.
-
----
-
-## 🧠 Methodology & Theoretical Background
-
-$$\text{IsSubjective} = (\text{HasSuperlativeOrOpinionPattern}) \lor (H(S) \ge \tau_{\text{entropy}})$$
-
-### 🔬 Theoretical Foundations
+## 🧠 Methodology & Theoretical Foundations
 
 1. **Expected Calibration Error (ECE):**
    $$\text{ECE} = \sum_{m=1}^{M} \frac{\vert{}B_m\vert{}}{N} \left\vert{} \text{acc}(B_m) - \text{conf}(B_m) \right\vert{}$$
 
 2. **Post-Hoc Temperature Scaling:**
-   $$\hat{q}_i = \max_k \sigma\left(\frac{\mathbf{z}_i}{T}\right)_k$$
+   $$P(w_i) = \frac{\exp(z_i / T)}{\sum_{j} \exp(z_j / T)}$$
 
-3. **Brier Score (Probabilistic Accuracy):**
-   $$\text{BS} = \frac{1}{N} \sum_{i=1}^{N} (f_i - o_i)^2$$
-
-4. **Semantic Entropy for LLMs:**
-   $$\text{SE}(x) = - \sum_{c \in C} p(c\vert{}x) \log p(c\vert{}x)$$
-
-5. **Composite Reliability & Refusal Score:**
-   $$\text{Reliability} = P_{\text{best}} + \text{Bonus}_{\text{POS}} - (1.0 \times H(S)) - (1.2 \times \text{ECE}_{\text{cal}})$$
+3. **Semantic Entropy:**
+   $$H(S) = - \sum_{i} P(w_i) \log P(w_i)$$
 
 ---
 
-## 📊 Benchmark Evaluation & Results
+## 📊 Benchmark Evaluation & Results (SUBJ Dataset, $N=1,000$)
 
-### 🌐 Out-of-Domain Real-World Benchmark: SUBJ Dataset ($N=1,000$)
-
-| Metrik (Evaluation Metric) | Değer (Value) | True Positive (TP) | True Negative (TN) |
+| Evaluation Metric | Value (%) | True Positive (TP) | True Negative (TN) |
 | :--- | :---: | :---: | :---: |
-| **General Accuracy** | **%83.20** | 457 / 500 | 375 / 500 |
-| **Precision** | **%78.52** | - | - |
-| **Recall (Sensitivity)** | **%91.40** | - | - |
-| **F1-Score** | **%84.47** | - | - |
+| **General Accuracy** | **83.20%** | 457 / 500 | 375 / 500 |
+| **Precision** | **78.52%** | - | - |
+| **Recall (Sensitivity)** | **91.40%** | - | - |
+| **F1-Score** | **84.47%** | - | - |
 
-```latex
-\begin{table}[h]
-\centering
-\caption{Real-World Out-of-Domain Benchmark Performance on SUBJ Dataset (N=1,000)}
-\label{tab:subj_dataset_performance}
-\begin{tabular}{lccc}
-\hline
-\textbf{Evaluation Metric} & \textbf{Value (\%)} & \textbf{True Positive (TP)} & \textbf{True Negative (TN)} \\ \hline
-General Accuracy & 83.20\% & 457 / 500 & 375 / 500 \\
-Precision & 78.52\% & - & - \\
-Recall & 91.40\% & - & - \\
-F1-Score & 84.47\% & - & - \\
-\hline
-\end{tabular}
-\end{table}
+---
 
-📂 Architecture & Directory Tree
+## 📂 Architecture & Directory Tree
 
+```text
 TrustLLM-Uncertainty-Quantification/
 │
-├── outputs/             
-│   ├── plots/
-│   └── reports/
+├── outputs/                 # 📊 Artifacts / Çıktılar / Ergebnisse
+│   ├── plots/               # Reliability diagrams & charts (.png)
+│   ├── reports/             # Benchmark results (.csv)
+│   └── pipeline_errors.log  # System diagnostics log
 │
-├── scripts/             
+├── scripts/                 # 🛠️ Executable Scripts / Runnables
 │   └── plot_benchmark_results.py
 │
-├── src/                 
-│   ├── ablation.py
-│   ├── academic_metrics.py
-│   ├── calibration.py
-│   ├── diagnostics.py
-│   ├── evaluator.py
-│   ├── extraction.py
-│   ├── metrics.py
-│   ├── pipeline.py
-│   ├── subjectivity.py
-│   ├── test_benchmarks.py
-│   ├── tuning.py
-│   └── uncertainty.py
+├── src/                     # 🧠 Core Modules / Çekirdek Kodlar
+│   ├── __init__.py          # Module identifier
+│   ├── ablation.py          # Ablation study pipeline
+│   ├── academic_metrics.py  # ECE & Brier score calculators
+│   ├── calibration.py       # Temperature scaling
+│   ├── diagnostics.py       # Logger & evaluation engine
+│   ├── evaluator.py         # Performance analytics
+│   ├── extraction.py        # Entity & logit extraction
+│   ├── metrics.py           # Reliability scoring
+│   ├── pipeline.py          # Inference manager
+│   ├── subjectivity.py      # Hybrid subjectivity analysis
+│   ├── test_benchmarks.py   # Benchmark suite definition
+│   ├── tuning.py            # Adaptive threshold & temperature tuning
+│   └── uncertainty.py       # Semantic entropy calculation
 │
-├── app.py
-├── README.md
-└── requirements.txt
+├── app.py                   # 🖥️ Streamlit Web Dashboard
+├── README.md                # Documentation / Dökümantasyon
+└── requirements.txt         # Dependencies
 
-🛠️ Installation & Execution / Kurulum
+🛠️ Installation & Execution / Kurulum / Installation
 
-# 1. Sanal Ortamı Aktifleştirin
+# 1. Activate Environment / Sanal Ortamı Aktifleştirin / Umgebung aktivieren
 .\.venv\Scripts\Activate.ps1
 
-# 2. Gerekli Paketleri, NLTK WordNet ve SpaCy Dil Modelini Yükleyin
-python -m pip install spacy nltk accelerate matplotlib streamlit pandas torch transformers
+# 2. Install Dependencies & NLP Models / Kütüphaneleri ve NLP Modellerini Yükleyin
+python -m pip install spacy nltk accelerate matplotlib seaborn streamlit pandas torch transformers
 python -m spacy download en_core_web_sm
 python -c "import nltk; nltk.download('wordnet')"
 
-# 3. İnteraktif Paneli Çalıştırın (Streamlit Dashboard)
+# 3. Launch Dashboard / Arayüzü Çalıştırın / Web-Dashboard starten
 streamlit run app.py
 
-# 4. 100.000 Soruluk Dev Öznellik Benchmark Testini Çalıştırın
-python test_subjectivity_100k.py
+# 4. Generate Academic Plots / Benchmark Grafikleri Çizdirin / Diagramme erstellen
+python -m scripts.plot_benchmark_results
