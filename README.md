@@ -147,23 +147,30 @@ F1-Score & 84.47\% & - & - \\
 
 TrustLLM-Uncertainty-Quantification/
 │
-├── src/                            # Production Engine Modülleri
-│   ├── __init__.py
-│   ├── subjectivity.py             # Dual-Signal & SpaCy Sentaks Öznellik Filtresi
-│   ├── extraction.py               # SpaCy POS Entity Isolation Engine & Stop-Word Filter
-│   ├── metrics.py                  # ECE, Brier Score & Semantic Entropy
-│   ├── calibration.py              # Temperature Scaling (L-BFGS)
-│   ├── uncertainty.py              # Semantic Clustering
-│   ├── tuning.py                   # Dynamic Adaptive Threshold & Temperature Auto-Tuner
-│   ├── pipeline.py                 # Dual-Model Inference Pipeline (Qwen2.5 vs TinyLlama)
-│   ├── academic_metrics.py         # Extended Post-Hoc Calibration & Confidence Logic
-│   └── ablation.py                 # Ablation Study Component Impact Analysis
+├── outputs/             
+│   ├── plots/
+│   └── reports/
 │
-├── app.py                          # Streamlit İnteraktif Araştırma Paneli (UI Orchestrator)
-├── evaluate_benchmark_50.py        # 50-Question Benchmark Evaluator
-├── test_subjectivity_100k.py       # 100,000-Question Large-Scale Evaluator
-├── requirements.txt                # System Dependencies
-└── README.md                       # Multilingual Academic Documentation
+├── scripts/             
+│   └── plot_benchmark_results.py
+│
+├── src/                 
+│   ├── ablation.py
+│   ├── academic_metrics.py
+│   ├── calibration.py
+│   ├── diagnostics.py
+│   ├── evaluator.py
+│   ├── extraction.py
+│   ├── metrics.py
+│   ├── pipeline.py
+│   ├── subjectivity.py
+│   ├── test_benchmarks.py
+│   ├── tuning.py
+│   └── uncertainty.py
+│
+├── app.py
+├── README.md
+└── requirements.txt
 
 🛠️ Installation & Execution / Kurulum
 
