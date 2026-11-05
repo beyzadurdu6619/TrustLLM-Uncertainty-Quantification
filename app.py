@@ -12,7 +12,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.explanation import generate_refusal_explanation
 
 try:
-    from src.ablation import run_ablation_analysiss12
+    from src.ablation import run_ablation_analysiss1
     from src.academic_metrics import compute_calibration_and_confidence
     from src.pipeline import run_pipeline_for_model
     from src.subjectivity import detect_hybrid_academic_subjectivity
