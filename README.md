@@ -108,7 +108,7 @@ TrustLLM-Uncertainty-Quantification/
 ├── README.md                # Documentation / Dökümantasyon
 └── requirements.txt         # Dependencies
 
-🛠️ Installation & Execution / Kurulum / Installation
+🛠️ Installation & Execution / Kurulum / Instalation
 
 # 1. Activate Environment / Sanal Ortamı Aktifleştirin / Umgebung aktivieren
 .\.venv\Scripts\Activate.ps1
